@@ -36,7 +36,7 @@ pico_sdk_init()
 # Define the destination directory in the build output
 set(DESTINATION_DIR ${CMAKE_BINARY_DIR})
 
-# Define the destination directory in the build output
+# Define the SSD1306 directory in the build output
 set(SSD1306_DIR ${CMAKE_CURRENT_LIST_DIR}/ssd1306)
 
 # Define the includes and sources directories in the build output
@@ -46,9 +46,10 @@ set(SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 
 # Add executable. Default name is the project name, version 0.1
 add_executable(smart_clock 
-            smart_clock.c 
-            ${SSD1306_DIR}/ssd1306.c
+            smart_clock.c
+            ${SOURCE_DIR}/display.c 
             ${SOURCE_DIR}/media_player.c
+            ${SSD1306_DIR}/ssd1306.c
             )
 
 pico_set_program_name(smart_clock "smart_clock")
@@ -68,10 +69,11 @@ target_link_libraries(smart_clock
 # Add the standard include files to the build
 target_include_directories(smart_clock PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
-        ${SSD1306_DIR}
         ${INCLUDE_DIR}
         ${SOURCE_DIR}
-)
+        ${SSD1306_DIR}
+        ${WS2812_DIR}
+        )
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(smart_clock 0)

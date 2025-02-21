@@ -22,8 +22,8 @@
 #include "ws2812.pio.h"
 
 #include "bitdoglab.h"
-
 // Midis included
+#include "display.h"
 #include "media_player.h"
 #include "notes.h"
 #include "midis/melodies.h"
@@ -37,7 +37,6 @@
 #include "imgs/icons.h"
 
 #include "pico/binary_info.h"
-#include "ssd1306.h"
 
 #define HOLD_TIME_MS 3000      // Time to hold (5 seconds)
 
@@ -47,8 +46,6 @@ bool isBuzzerPlaying = false;
 bool triggerAlarm    = false;//true;
 bool playAlarm       = false;
 bool isDispInverted  = false;
-
-uint8_t display_buffer[SSD1306_BUF_LEN];
 
 #include "pico/stdlib.h"
 
@@ -64,6 +61,7 @@ typedef enum {
 
 ButtonState button_state = IDLE;
 uint32_t press_start_time = 0;
+uint8_t scroll_state;
 
 // Function to handle button press
 void check_button() {
@@ -111,14 +109,6 @@ void config_i2c_port(i2c_inst_t * i2cport, int i2c_clock, uint8_t sdapin, uint8_
     gpio_pull_up(sdapin);
     gpio_pull_up(sclpin);
 }
-
-// Initialize render area for entire frame (BITDOG_DISP_WIDTH pixels by SSD1306_NUM_PAGES pages)
-render_area frame_area = {
-    start_col: 0,
-    end_col : BITDOG_DISP_WIDTH - 1,
-    start_page : 0,
-    end_page : SSD1306_NUM_PAGES - 1
-};
 
 char text[4][20] = {
     "",
@@ -169,53 +159,6 @@ void turn_off_leds() {
     for (int i = 0; i < NUM_LEDS; i++) {
         pio_sm_put_blocking(pio, sm, 0x000000);
     }
-}
-
-/***********************************
- * OLED Display Handling Functions *
- ***********************************/ 
-
-// intro sequence: flash the screen 3 times
-void play_display_intro(){
-    for (int i = 0; i < 3; i++) {
-        SSD1306_send_cmd(SSD1306_SET_ALL_ON);    // Set all pixels on
-        sleep_ms(500);
-        SSD1306_send_cmd(SSD1306_SET_ENTIRE_ON); // go back to following RAM for pixel state
-        sleep_ms(500);
-    }
-}
-
-void clear_display(uint8_t * handler, render_area *area)
-{
-    memset(handler, 0, SSD1306_BUF_LEN);
-    render(handler, area);
-}
-
-void display_transition(uint8_t * buffer, render_area *area) {
-    bool pix = true;
-    for (int i = 0; i < 2;i++) {
-        for (int x = 0;x < BITDOG_DISP_WIDTH;x++) {
-            DrawLine(buffer, x, 0,  BITDOG_DISP_WIDTH - 1 - x, BITDOG_DISP_HEIGHT - 1, pix);
-            render(buffer, area);
-        }
-
-        for (int y = BITDOG_DISP_HEIGHT-1; y >= 0 ;y--) {
-            DrawLine(buffer, 0, y, BITDOG_DISP_WIDTH - 1, BITDOG_DISP_HEIGHT - 1 - y, pix);
-            render(buffer, area);
-        }
-        pix = false;
-    }
-}
-
-void render_text(char output[][20])
-{
-    int y = 0;
-    for (uint i = 0 ;i < 4; i++) {
-        printf("%s\n", output[i]);
-        WriteString(display_buffer, 5, y, output[i]);
-        y+=8;
-    }
-    render(display_buffer, &frame_area);
 }
 
 /**************************************
@@ -368,13 +311,20 @@ bool invert_display_timer_callback(struct repeating_timer *t) {
 }
 
 bool update_display_timer_callback(struct repeating_timer *t) {
-    /*render_area *area = (render_area *)t->user_data;
-    if(isDispInverted){
-        SSD1306_send_cmd(SSD1306_SET_NORM_DISP);
-    } else {
-        SSD1306_send_cmd(SSD1306_SET_INV_DISP);
+    read_rtc_datetime(text);
+    render_text(text);
+}
+
+bool scroll_display_timer_callback(struct repeating_timer *t) {
+    if(scroll_state == 1){
+        SSD1306_scroll(true);
+    } else if(scroll_state == 2){
+        SSD1306_scroll(false);
+    } else{
+        scroll_state = 0;
     }
-    isDispInverted = !isDispInverted;*/
+
+    scroll_state++;
 }
 
 /*******************/ 
@@ -388,7 +338,8 @@ int main()
     gpio_set_function(8, GPIO_FUNC_UART);
     gpio_set_function(9, GPIO_FUNC_UART);
     
-    struct repeating_timer timer_leds, timer_buzzers, timer_disp_inv, timer_disp_update;
+    struct repeating_timer timer_leds, timer_buzzers, 
+                            timer_disp_inv, timer_disp_update, timer_disp_scroll;
 
     //float brightness = 0.1;
     Melody alarmTune = nokia;
@@ -444,21 +395,17 @@ int main()
     add_repeating_timer_ms(wait, buzzer_timer_callback, NULL, &timer_buzzers);
     add_repeating_timer_ms(2000, invert_display_timer_callback, NULL, &timer_disp_inv);
     add_repeating_timer_ms(1000, update_display_timer_callback, NULL, &timer_disp_update);
+    //add_repeating_timer_ms(1500, scroll_display_timer_callback, NULL, &timer_disp_scroll);
 
     //if(triggerAlarm) playAlarm = true; // Immediatly triggers the melody the first time if alarm is already triggering.
 
     calc_render_area_buflen(&frame_area);
 
-    // Clear the entire display
     clear_display(display_buffer, &frame_area);
 
     //play_display_intro();
 
-    // render 3 cute little raspberries
-    //render_area raspberries = {
-    //    start_page : 0,
-    //    end_page : (IMG_HEIGHT / SSD1306_PAGE_HEIGHT)  - 1
-    //};
+    scroll_state = 0;
 
     uint8_t start_addr = 0x00;
     while(!i2c_write_blocking(BITDOG_RTC_PORT, BITDOG_RTC_ADDR, &start_addr, 1, true))
@@ -485,29 +432,7 @@ int main()
     
     while(true)
     {
-        /*raspberries.start_col = 0;
-        raspberries.end_col = IMG_WIDTH - 1;
-        
-        calc_render_area_buflen(&raspberries);
-
-        uint8_t offset = 5 + IMG_WIDTH; // 5px padding
-
-        for (int i = 0; i < 3; i++) {
-            render(raspberry26x32, &raspberries);
-            raspberries.start_col += offset;
-            raspberries.end_col += offset;
-        }*/
-
-        check_button();
         sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
-
-        // Other functionalities can run here
-        printf("Other tasks running...\n");
-        sleep_ms(500);  // Simulating other tasks
-
-        read_rtc_datetime(text);
-        
-        render_text(text);
 
         // Handle alarm logic
         if(isBuzzerPlaying == false && triggerAlarm == true && playAlarm == true){
@@ -520,10 +445,6 @@ int main()
             gpio_set_function(BITDOG_BZZ_B, GPIO_FUNC_NULL);
             isBuzzerPlaying = false;
         }
-
-        SSD1306_scroll(true);
-        sleep_ms(1500);
-        SSD1306_scroll(false);
 
         //display_transition(display_buffer, &frame_area);
     
@@ -572,7 +493,6 @@ int main()
 
         //read_joystick();
         sleep_ms(50);
-        //clear_display(display_buffer, &frame_area);
     }
 
     return 0;
