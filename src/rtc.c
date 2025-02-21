@@ -9,15 +9,15 @@
 #include <string.h>
 #include <hardware/i2c.h>
 
-uint8_t dec_to_bcd(uint8_t dec) {
+static uint8_t dec_to_bcd(uint8_t dec) {
     return ((dec / 10) << 4) | (dec % 10);
 }
 
-uint8_t bcd_to_dec(uint8_t val) {
+static uint8_t bcd_to_dec(uint8_t val) {
     return ((val / 16 * 10) + (val % 16));
 }
 
-bool set_rtc_datetime(uint8_t* time, uint8_t* date) {
+bool rtc_write_datetime(uint8_t* time, uint8_t* date) {
     printf("SETTING DATE TIME\n");
     uint8_t datetime[] = {
         0x00,                       // Byte de endereço: registrador 0x00
@@ -44,7 +44,7 @@ bool set_rtc_datetime(uint8_t* time, uint8_t* date) {
     }
 }
 
-void read_rtc_datetime(char output[][20]) {
+void rtc_read_datetime(char output[][20]) {
     uint8_t buffer[7];
     uint8_t start_addr = 0x00;
     char data[20], hora[20], wday[20];
@@ -91,7 +91,6 @@ void read_rtc_datetime(char output[][20]) {
         strcpy(wday, "Octofeira");
     }
 
-    printf("Data/Hora: %s, %s\n", data, hora);
     strcpy(output[0], data);
     strcpy(output[1], hora);
     strcpy(output[2], wday);

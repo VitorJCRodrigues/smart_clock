@@ -7,7 +7,12 @@
 #include <math.h>
 #include <pico/stdlib.h>
 
-void init_pwm(uint gpio_pin)
+static double midiNoteToFrequency(int note)
+{ 
+    return 440.0 * pow(2.0, (note - 69) / 12.0);
+}
+
+void bazz_player_init(uint gpio_pin)
 {
     gpio_set_function(gpio_pin, GPIO_FUNC_PWM);
     uint slice_num = pwm_gpio_to_slice_num(gpio_pin);
@@ -16,7 +21,7 @@ void init_pwm(uint gpio_pin)
     pwm_set_enabled(slice_num, true);
 }
 
-void play_tone(uint gpio_pin, uint frequency)
+void bazz_player_play_tone(uint gpio_pin, uint frequency)
 {
     uint slice_num = pwm_gpio_to_slice_num(gpio_pin);
     uint32_t clock = clock_get_hz(clk_sys); // System clock frequency
@@ -31,40 +36,35 @@ void play_tone(uint gpio_pin, uint frequency)
     pwm_set_enabled(slice_num, true);
 }
 
-void stop_tone(uint gpio_pin)
+void bazz_player_stop_tone(uint gpio_pin)
 {
     uint slice_num = pwm_gpio_to_slice_num(gpio_pin);
     pwm_set_enabled(slice_num, false);
 }
 
-void play_melody(uint gpio_pin, Melody melody) 
+void bazz_player_play_melody(uint gpio_pin, Melody melody) 
 {
     for (int i = 0; i < melody.length; i++) 
     {
         double duration = (1000 / melody.durations[i]); // Calculate the duration of the note in milliseconds
 
-        play_tone(gpio_pin, melody.notes[i]);
+        bazz_player_play_tone(gpio_pin, melody.notes[i]);
         sleep_ms(duration*1.2); 
-        stop_tone(gpio_pin);
+        bazz_player_stop_tone(gpio_pin);
 
         sleep_ms(50); // Short pause between notes
     }
 }
 
-void play_midi(uint gpio_pin, Midi midi) 
+void bazz_player_play_midi(uint gpio_pin, Midi midi) 
 {
     for (int i = 0; i < midi.length; i++) 
     {
         double duration = (midi.durations[i]);
 
-        play_tone(gpio_pin, midi.notes[i]);
+        bazz_player_play_tone(gpio_pin, midi.notes[i]);
         sleep_ms(duration); 
-        stop_tone(gpio_pin);
+        bazz_player_stop_tone(gpio_pin);
         sleep_ms(50); // Short pause between notes
     }
-}
-
-double midiNoteToFrequency(int note)
-{ 
-    return 440.0 * pow(2.0, (note - 69) / 12.0);
 }

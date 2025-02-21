@@ -111,6 +111,18 @@ char text[4][20] = {
     ""
 };
 
+void display_init()
+{
+    calc_render_area_buflen(&frame_area);
+    display_clear(&frame_area);
+    display_play_transition(&frame_area);
+    bazz_player_init(BITDOG_BZZ_B);
+    bazz_player_play_tone(BITDOG_BZZ_B, NOTE_B2);
+    sleep_ms(100);
+    bazz_player_stop_tone(BITDOG_BZZ_B);
+    sleep_ms(1000);
+}
+
 /*********************************
  * LED Matrix Handling Functions *
  *********************************/ 
@@ -210,8 +222,8 @@ bool invert_display_timer_callback(struct repeating_timer *t) {
 }
 
 bool update_display_timer_callback(struct repeating_timer *t) {
-    read_rtc_datetime(text);
-    render_text(text);
+    rtc_read_datetime(text);
+    display_render_text(text);
 }
 
 bool scroll_display_timer_callback(struct repeating_timer *t) {
@@ -289,6 +301,8 @@ int main()
     for (int i = 0; i < alarmTune.length; i++)
         wait += (alarmTune.tempo * 0.004) / alarmTune.durations[i];
 
+    display_init();
+
     add_repeating_timer_ms(1000, led_timer_callback, &img, &timer_leds);
     add_repeating_timer_ms(wait, buzzer_timer_callback, NULL, &timer_buzzers);
     add_repeating_timer_ms(2000, invert_display_timer_callback, NULL, &timer_disp_inv);
@@ -296,12 +310,6 @@ int main()
     //add_repeating_timer_ms(1500, scroll_display_timer_callback, NULL, &timer_disp_scroll);
 
     //if(triggerAlarm) playAlarm = true; // Immediatly triggers the melody the first time if alarm is already triggering.
-
-    calc_render_area_buflen(&frame_area);
-
-    clear_display(display_buffer, &frame_area);
-
-    //play_display_intro();
 
     scroll_state = 0;
 
@@ -315,7 +323,7 @@ int main()
     bool date_set = true;//false;
     while(!date_set)
     {
-        if(!set_rtc_datetime(hora, data)){
+        if(!rtc_write_datetime(hora, data)){
             printf("ERRO: Nao foi possivel definir datetime!\n");
         } else {
             date_set = true;
@@ -333,10 +341,10 @@ int main()
         if(isBuzzerPlaying == false && triggerAlarm == true && playAlarm == true){
             isBuzzerPlaying = true;
             playAlarm = false;
-            init_pwm(BITDOG_BZZ_B);
-            play_melody(BITDOG_BZZ_B, alarmTune);
+            bazz_player_init(BITDOG_BZZ_B);
+            bazz_player_play_melody(BITDOG_BZZ_B, alarmTune);
             //play_midi(BITDOG_BZZ_B, alarmTune);
-            stop_tone(BITDOG_BZZ_B);
+            bazz_player_stop_tone(BITDOG_BZZ_B);
             gpio_set_function(BITDOG_BZZ_B, GPIO_FUNC_NULL);
             isBuzzerPlaying = false;
         }

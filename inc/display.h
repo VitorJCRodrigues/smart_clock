@@ -23,13 +23,15 @@ extern render_area raspberries;
  ***********************************/ 
 
 // Intro sequence: flash the screen 3 times
-void play_display_intro();
+void display_play_intro();
 
 // Clear the entire display
-void clear_display(uint8_t * handler, render_area *area);
+void display_clear(render_area *area);
 
-void display_transition(uint8_t * buffer, render_area *area);
+// Plays a small transition that swirls the display
+void display_play_transition(render_area *area);
 
-void render_text(char output[][20]);
+// Renders a 4x20 textbox on display
+void display_render_text(char output[][20]);
 
 #endif //DISPLAY_H

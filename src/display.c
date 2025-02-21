@@ -19,7 +19,7 @@ render_area raspberries = {
     end_page : (IMG_HEIGHT / SSD1306_PAGE_HEIGHT)  - 1
 };
 
-void play_display_intro(){
+void display_play_intro(){
     for (int i = 0; i < 3; i++) {
         SSD1306_send_cmd(SSD1306_SET_ALL_ON);    // Set all pixels on
         sleep_ms(500);
@@ -28,33 +28,32 @@ void play_display_intro(){
     }
 }
 
-void clear_display(uint8_t * handler, render_area *area)
+void display_clear(render_area *area)
 {
-    memset(handler, 0, SSD1306_BUF_LEN);
-    render(handler, area);
+    memset(display_buffer, 0, SSD1306_BUF_LEN);
+    render(display_buffer, area);
 }
 
-void display_transition(uint8_t * buffer, render_area *area) {
+void display_play_transition(render_area *area) {
     bool pix = true;
     for (int i = 0; i < 2;i++) {
         for (int x = 0;x < BITDOG_DISP_WIDTH;x++) {
-            DrawLine(buffer, x, 0,  BITDOG_DISP_WIDTH - 1 - x, BITDOG_DISP_HEIGHT - 1, pix);
-            render(buffer, area);
+            DrawLine(display_buffer, x, 0,  BITDOG_DISP_WIDTH - 1 - x, BITDOG_DISP_HEIGHT - 1, pix);
+            render(display_buffer, area);
         }
 
-        for (int y = BITDOG_DISP_HEIGHT-1; y >= 0 ;y--) {
-            DrawLine(buffer, 0, y, BITDOG_DISP_WIDTH - 1, BITDOG_DISP_HEIGHT - 1 - y, pix);
-            render(buffer, area);
-        }
+        /*for (int y = BITDOG_DISP_HEIGHT-1; y >= 0 ;y--) {
+            DrawLine(display_buffer, 0, y, BITDOG_DISP_WIDTH - 1, BITDOG_DISP_HEIGHT - 1 - y, pix);
+            render(display_buffer, area);
+        }*/
         pix = false;
     }
 }
 
-void render_text(char output[][20])
+void display_render_text(char output[][20])
 {
     int y = 0;
     for (uint i = 0 ;i < 4; i++) {
-        printf("%s\n", output[i]);
         WriteString(display_buffer, 5, y, output[i]);
         y+=8;
     }
