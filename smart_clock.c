@@ -52,44 +52,80 @@ typedef enum {
     HELD
 } ButtonState;
 
-ButtonState button_state = IDLE;
+typedef struct {
+    ButtonState state;
+    uint32_t press_time;
+    bool isDone;
+} Button;
+
+Button btn_a = {
+    .state = IDLE, .press_time = 0, .isDone = false,
+};
+
+Button btn_b = {
+    .state = IDLE, .press_time = 0, .isDone = false,
+};
+
 uint8_t scroll_state;
 
 // Function to handle button press
-void check_button() {
-    // Check if button is pressed (active low)
-    bool is_pressed = (gpio_get(BITDOG_BTN_B) == 0);
+bool check_button(uint button_pin, uint hold_time, Button *btn_hdl) {
+    bool is_pressed = (gpio_get(button_pin) == 0);
+    bool ret = false;
 
-    switch (button_state) {
+    switch (btn_hdl->state) {
         case IDLE:
             if (is_pressed) {
-                // Button just pressed, start timing
-                press_start_time = to_ms_since_boot(get_absolute_time());
-                button_state = PRESSED;
+                sleep_ms(DEBOUNCE_DELAY_MS);  // Add debounce delay here
+                if (gpio_get(button_pin) == 0) { // Confirm button is still pressed
+                    btn_hdl->press_time = to_ms_since_boot(get_absolute_time());
+                    btn_hdl->state = PRESSED;
+                    btn_hdl->isDone = false;
+                }
             }
             break;
 
         case PRESSED:
             if (is_pressed) {
                 // Button still held, check duration
-                uint32_t elapsed_time = to_ms_since_boot(get_absolute_time()) - press_start_time;
-                if (elapsed_time >= HOLD_TIME_MS) {
-                    // Button held long enough
-                    printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
-                    button_state = HELD;
+                uint32_t elapsed_time = to_ms_since_boot(get_absolute_time()) - btn_hdl->press_time;
+                if (elapsed_time >= hold_time && !(btn_hdl->isDone)) {
+                    btn_hdl->isDone = true; // Mark task as done
+                    btn_hdl->state = HELD; // Immediately go to HELD state
+                    ret = true;
                 }
             } else {
                 // Button released before hold time
-                button_state = IDLE;
+                btn_hdl->state = IDLE;
             }
             break;
 
         case HELD:
             if (!is_pressed) {
                 // Button released, go back to IDLE
-                button_state = IDLE;
+                btn_hdl->state = IDLE;
+                btn_hdl->isDone = false; // Reset the task flag
             }
             break;
+    }
+
+    return ret;
+}
+
+
+void is_button_a_held()
+{
+    if(check_button(BITDOG_BTN_A, HOLD_TIME_MS, &btn_a)){
+        sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
+        printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
+    }
+}
+
+void is_button_b_held()
+{
+    if(check_button(BITDOG_BTN_B, HOLD_TIME_MS, &btn_b)){
+        sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
+        printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
     }
 }
 
@@ -328,13 +364,11 @@ int main()
         } 
     }
 
-    uint32_t press_start_time = 0;
-    bool is_pressed = false;
-    
     while(true)
     {
-        sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
-
+        is_button_a_held();
+        is_button_b_held();
+        
         // Handle alarm logic
         if(isBuzzerPlaying == false && triggerAlarm == true && playAlarm == true){
             isBuzzerPlaying = true;
@@ -354,42 +388,6 @@ int main()
             sleep_ms(50); // Small delay to debounce buttons
             triggerAlarm = false; // Disable the alarm
             printf("Buttons pressed: Alarm disabled.\n");
-        }
-
-        // Check if button B is held (active low)
-        if (gpio_get(BITDOG_BTN_B) == 0) {
-            if (!is_pressed) {
-                press_start_time = to_ms_since_boot(get_absolute_time());
-                is_pressed = true;
-            } else {
-                uint32_t elapsed_time = to_ms_since_boot(get_absolute_time()) - press_start_time;
-                if (elapsed_time >= HOLD_TIME_MS) {
-                    printf("Cadastrar Alarme!\n");
-                    // Add any action to be performed here
-                    is_pressed = false;  // Reset state after detection
-                }
-            }
-        } else {
-            // Button is released
-            is_pressed = false;
-        }
-
-        // Check if button A is held (active low)
-        if (gpio_get(BITDOG_BTN_A) == 0) {
-            if (!is_pressed) {
-                press_start_time = to_ms_since_boot(get_absolute_time());
-                is_pressed = true;
-            } else {
-                uint32_t elapsed_time = to_ms_since_boot(get_absolute_time()) - press_start_time;
-                if (elapsed_time >= HOLD_TIME_MS) {
-                    printf("Setar Relógio!\n");
-                    // Add any action to be performed here
-                    is_pressed = false;  // Reset state after detection
-                }
-            }
-        } else {
-            // Button is released
-            is_pressed = false;
         }
 
         //read_joystick();
