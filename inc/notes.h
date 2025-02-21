@@ -1,5 +1,8 @@
 // This is a map for notes containing all notes frequencies
 // notes.h
+//Author: Vítor Rodrigues
+//Repository: https://github.com/VitorJCRodrigues/smart_clock
+
 #ifndef NOTES_H
 #define NOTES_H
 

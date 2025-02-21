@@ -1,4 +1,6 @@
 //media_player.h
+//Author: Vítor Rodrigues
+//Repository: https://github.com/VitorJCRodrigues/smart_clock
 
 #ifndef MEDIA_PLAYER_H
 #define MEDIA_PLAYER_H
