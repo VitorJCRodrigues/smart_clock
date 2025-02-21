@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdbool.h>
 
 #include <hardware/gpio.h>
@@ -16,24 +15,22 @@
 #include <hardware/adc.h>
 
 #include <pico/stdlib.h>
+#include <pico/binary_info.h>
+
 #include "ws2812.pio.h"
 
 #include "bitdoglab.h"
-// Midis included
 #include "display.h"
 #include "media_player.h"
 #include "rtc.h"
+
+#include "imgs/icons.h"
 #include "midis/melodies.h"
 //#include "midis/alex_underwater.h"
 //#include "midis/bohemian_rhapsody.h"
 //#include "midis/never_gonna_give_you_up.h"
 //#include "midis/cantode.h"
 //#include "midis/creep.h"
-
-// Imgs included
-#include "imgs/icons.h"
-
-#include "pico/binary_info.h"
 
 #define HOLD_TIME_MS 3000      // Time to hold (5 seconds)
 
@@ -43,8 +40,6 @@ bool isBuzzerPlaying = false;
 bool triggerAlarm    = false;//true;
 bool playAlarm       = false;
 bool isDispInverted  = false;
-
-#include "pico/stdlib.h"
 
 // Pin configuration
 #define DEBOUNCE_DELAY_MS 10   // Debounce delay
