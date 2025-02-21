@@ -49,6 +49,7 @@ add_executable(smart_clock
             smart_clock.c
             ${SOURCE_DIR}/display.c 
             ${SOURCE_DIR}/media_player.c
+            ${SOURCE_DIR}/rtc.c 
             ${SSD1306_DIR}/ssd1306.c
             )
 
