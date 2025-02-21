@@ -70,6 +70,7 @@ target_link_libraries(smart_clock
         pico_stdio
         hardware_i2c
         hardware_adc
+        hardware_rtc
         )
 
 # Add the standard include files to the build

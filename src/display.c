@@ -52,12 +52,41 @@ void display_play_transition(render_area *area) {
 
 void display_render_text(char output[][20])
 {
+    display_clear(&frame_area);
     int y = 0;
     for (uint i = 0 ;i < 4; i++) {
         WriteString(display_buffer, 5, y, output[i]);
         y+=8;
     }
     render(display_buffer, &frame_area);
+}
+
+void display_render_datetime(datetime_t datetime)
+{
+    int y = 0;
+    char text_to_render[4][20];
+    sprintf(text_to_render[0], "%02d-%02d-%04d", datetime.day, datetime.month, (datetime.year));
+    sprintf(text_to_render[1], "%02d:%02d:%02d", datetime.hour, datetime.min, datetime.sec);
+
+    if (datetime.dotw== 0){
+        strcpy(text_to_render[2], "Sunday");
+    } else if (datetime.dotw== 1){
+        strcpy(text_to_render[2], "Monday");
+    } else if (datetime.dotw== 2){
+        strcpy(text_to_render[2], "Tuesday");
+    } else if (datetime.dotw== 3){
+        strcpy(text_to_render[2], "Wednesday");
+    } else if (datetime.dotw== 4){
+        strcpy(text_to_render[2], "Thursday");
+    } else if (datetime.dotw== 5){
+        strcpy(text_to_render[2], "Friday");
+    } else if (datetime.dotw== 6){
+        strcpy(text_to_render[2], "Saturday");
+    } else if (datetime.dotw== 7){
+        strcpy(text_to_render[2], "Octofeira");
+    }
+
+    display_render_text(text_to_render);
 }
 
 /*raspberries.start_col = 0;

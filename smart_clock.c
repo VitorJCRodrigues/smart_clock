@@ -13,6 +13,7 @@
 #include <hardware/timer.h>
 #include <hardware/uart.h>
 #include <hardware/adc.h>
+#include <hardware/rtc.h>
 
 #include <pico/stdlib.h>
 #include <pico/binary_info.h>
@@ -52,9 +53,6 @@ typedef enum {
 } ButtonState;
 
 ButtonState button_state = IDLE;
-uint32_t press_start_time = 0;
-uint8_t data[3] = {25, 2, 19};  // Dia: 24, Mês: 9, Ano: 24 (2024)
-uint8_t hora[3] = {22, 51, 0};  // Hora: 13, Minuto: 27, Segundos: 0
 uint8_t scroll_state;
 
 // Function to handle button press
@@ -222,8 +220,8 @@ bool invert_display_timer_callback(struct repeating_timer *t) {
 }
 
 bool update_display_timer_callback(struct repeating_timer *t) {
-    rtc_read_datetime(text);
-    display_render_text(text);
+    rtc_read_datetime(&current_datetime);
+    display_render_datetime(current_datetime);
 }
 
 bool scroll_display_timer_callback(struct repeating_timer *t) {

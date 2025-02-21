@@ -34,4 +34,7 @@ void display_play_transition(render_area *area);
 // Renders a 4x20 textbox on display
 void display_render_text(char output[][20]);
 
+// Renders a datetime info on a texbox
+void display_render_datetime(datetime_t datetime);
+
 #endif //DISPLAY_H
