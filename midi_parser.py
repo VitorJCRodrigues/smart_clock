@@ -1,7 +1,11 @@
+# midi_parser.py 
+## Python Script to convert and parse MIDI files to the format used on Smart Clock project (C-Array Structures)
+## Author: Vítor Rodrigues
+## Repository: https://github.com/VitorJCRodrigues/smart_clock
+
 import mido
 import sys
 import os
-import math
 
 def midi_to_freq(note):
     return round(440.0 * (2 ** ((note - 69) / 12)))

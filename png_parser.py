@@ -1,3 +1,8 @@
+# png_parser.py 
+## Python Script to convert and parse PNG files to the format used on Smart Clock project (C-Array Structures)
+## Author: Vítor Rodrigues
+## Repository: https://github.com/VitorJCRodrigues/smart_clock
+
 from PIL import Image
 import sys
 import os

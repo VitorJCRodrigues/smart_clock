@@ -1,6 +1,6 @@
-//media_player.c
-//Author: Vítor Rodrigues
-//Repository: https://github.com/VitorJCRodrigues/smart_clock
+// media_player.c
+// Author: Vítor Rodrigues
+// Repository: https://github.com/VitorJCRodrigues/smart_clock
 
 #include "media_player.h"
 #include <stdio.h>

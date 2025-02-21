@@ -1,8 +1,8 @@
-//bitdoglab.h
-//Pinmap for the Smart Clock Project
-//Contains definitions for the main resources used in the board
-//Author: Vítor Rodrigues
-//Repository: https://github.com/VitorJCRodrigues/smart_clock
+// bitdoglab.h
+// Pinmap for the Smart Clock Project
+// Contains definitions for the main resources used in the board
+// Author: Vítor Rodrigues
+// Repository: https://github.com/VitorJCRodrigues/smart_clock
 
 #ifndef BITDOGLAB_H
 #define BITDOGLAB_H

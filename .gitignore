@@ -1,3 +1,6 @@
 /build
 /.vscode
 *.obj
+*.csv
+*.png
+*.mid
