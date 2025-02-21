@@ -6,9 +6,23 @@
 #include "bitdoglab.h"
 
 #include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <hardware/i2c.h>
 #include <hardware/rtc.h>
+
+static bool is_leap_year(int year) {
+    return ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0));
+}
+
+static int days_in_month(int year, int month) {
+    static const int days_per_month[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    if (month == 2 && is_leap_year(year)) {
+        return 29;
+    }
+    return days_per_month[month - 1];
+}
 
 static uint8_t dec_to_bcd(uint8_t dec) {
     return ((dec / 10) << 4) | (dec % 10);
@@ -16,6 +30,33 @@ static uint8_t dec_to_bcd(uint8_t dec) {
 
 static uint8_t bcd_to_dec(uint8_t val) {
     return ((val / 16 * 10) + (val % 16));
+}
+
+static uint8_t* datetime_to_uint(datetime_t datetime)
+{
+    static uint8_t buffer[8];
+
+    buffer[0] = 0x00;                            // Byte de endereço: registrador 0x00
+    buffer[1] = dec_to_bcd(datetime.sec) & 0x7F;  // Segundos (& bit CH = 0)
+    buffer[2] = dec_to_bcd(datetime.min);         // Minutos
+    buffer[3] = dec_to_bcd(datetime.hour);        // Horas (formato 24h)
+    buffer[4] = dec_to_bcd(datetime.dotw);        // Dia da semana
+    buffer[5] = dec_to_bcd(datetime.day);         // Dia
+    buffer[6] = dec_to_bcd(datetime.month);       // Mês
+    buffer[7] = dec_to_bcd(datetime.year);        // Ano (últimos dois dígitos)
+
+    return buffer;
+}
+
+// Calculate absolute difference in seconds
+static int calculate_day_difference(uint32_t timestamp1, uint32_t timestamp2) {
+
+    uint32_t diff_seconds = (timestamp1 > timestamp2) ? 
+                             (timestamp1 - timestamp2) : 
+                             (timestamp2 - timestamp1);
+    
+    // Convert seconds to days (1 day = 86400 seconds)
+    return diff_seconds / 86400;
 }
 
 static datetime_t uint_to_datetime(uint8_t *buffer)
@@ -33,26 +74,17 @@ static datetime_t uint_to_datetime(uint8_t *buffer)
     return datetime;
 }
 
-bool rtc_write_datetime(uint8_t* time, uint8_t* date, uint8_t dotw) {
+bool rtc_write_datetime(datetime_t dt) {
     printf("SETTING DATE TIME\n");
-    uint8_t datetime[] = {
-        0x00,                       // Byte de endereço: registrador 0x00
-        dec_to_bcd(time[2]) & 0x7F, // Segundos (& bit CH = 0)
-        dec_to_bcd(time[1]),        // Minutos
-        dec_to_bcd(time[0]),        // Horas (formato 24h)
-        dec_to_bcd(dotw),           // Dia da semana
-        dec_to_bcd(date[2]),        // Dia
-        dec_to_bcd(date[1]),        // Mês
-        dec_to_bcd(date[0])         // Ano (últimos dois dígitos)
-    };
+    uint8_t* buf = datetime_to_uint(dt);
     
-    int result = i2c_write_blocking(BITDOG_RTC_PORT, BITDOG_RTC_ADDR, datetime,
-                                    sizeof(datetime), false);
+    int result = i2c_write_blocking(BITDOG_RTC_PORT, BITDOG_RTC_ADDR, buf,
+                                    sizeof(buf), false);
     printf("result: %d\n", result);
-    if (result == sizeof(datetime)) {
-        printf("RTC configurado para %02d/%02d/20%02d - %02d:%02d:%02d\n",
-               date[0], date[1], date[2],
-               time[0], time[1], time[2]);
+    if (result == sizeof(buf)) {
+        printf("RTC configurado para %02d/%02d/%04d - %02d:%02d:%02d\n",
+               dt.day,  dt.month, dt.year,
+               dt.hour, dt.min,   dt.sec);
         return true;
     } else {
         printf("Erro ao configurar o RTC!\n");
@@ -85,4 +117,41 @@ void rtc_read_datetime(datetime_t *datetime) {
                current_datetime.hour, current_datetime.min, current_datetime.sec);
 
     *datetime = current_datetime;
+}
+
+uint32_t datetime_to_timestamp(datetime_t *dt) {
+    uint32_t timestamp = 0;
+    int year, month;
+    
+    // Add seconds for complete years
+    for (year = 1970; year < dt->year; year++) {
+        timestamp += (is_leap_year(year) ? 366 : 365) * 86400;
+    }
+    
+    // Add seconds for complete months
+    for (month = 1; month < dt->month; month++) {
+        timestamp += days_in_month(dt->year, month) * 86400;
+    }
+    
+    // Add seconds for complete days
+    timestamp += (dt->day - 1) * 86400;
+    
+    // Add seconds for complete hours, minutes, and seconds
+    timestamp += dt->hour * 3600;
+    timestamp += dt->min * 60;
+    timestamp += dt->sec;
+    
+    return timestamp;
+}
+
+uint8_t calculate_new_dotw(datetime_t old_dt, datetime_t new_dt)
+{
+    uint32_t new_timestamp, old_timestamp;
+
+    old_timestamp = datetime_to_timestamp(&old_dt);
+    new_timestamp = datetime_to_timestamp(&new_dt);
+    uint8_t new_day_of_week = (old_dt.dotw + calculate_day_difference(new_timestamp, old_timestamp)) % 7;
+    if (new_day_of_week <= 0) new_day_of_week += 7;
+
+    return new_day_of_week;
 }

@@ -41,9 +41,20 @@ bool isBuzzerPlaying = false;
 bool triggerAlarm    = false;//true;
 bool playAlarm       = false;
 bool isDispInverted  = false;
+bool freezeDisplay   = false;
+
+int clock_setting = 0;
 
 // Pin configuration
 #define DEBOUNCE_DELAY_MS 10   // Debounce delay
+
+bool hasAlarmSet = false;
+char alarmLine[] = "";
+datetime_t alarm_time = {
+    .day=1, .month=1, .year=1970,
+    .hour=0, .min=0, .sec=0, 
+    .dotw=0
+    };
 
 // State machine states
 typedef enum {
@@ -67,6 +78,113 @@ Button btn_b = {
 };
 
 uint8_t scroll_state;
+datetime_t current_datetime;
+
+
+// Joystick thresholds for movement detection
+#define JOY_THRESHOLD_LOW  30
+#define JOY_THRESHOLD_HIGH 70
+
+// Function to handle changing the clock setting
+void handle_datetime_setting() {
+    freezeDisplay = true;
+    int number = 0;
+    bool joystick_left = false;
+    bool joystick_right = false;
+    bool button_pressed = false;
+    absolute_time_t last_move_time = get_absolute_time();
+    datetime_t new_datetime = current_datetime;
+    
+    while (1) {
+        // Read joystick
+        adc_select_input(1);  // ADC0 (Vrx)
+        uint16_t vrx_value = adc_read();
+        adc_select_input(0);  // ADC1 (Vry)
+        uint16_t vry_value = adc_read();
+        bool sw_pressed = gpio_get(BITDOG_JOY_SW) == 0;
+        
+        // Scale the values to 0 - 100
+        int vrx_percent = (vrx_value * 100) / 4095;
+        int vry_percent = (vry_value * 100) / 4095;
+
+        // Check if button is pressed
+        if (sw_pressed) {
+            printf("Button pressed\n");
+            sleep_ms(100);
+            if (gpio_get(BITDOG_JOY_SW) == 0) {
+                clock_setting++;
+                if(clock_setting>6){
+                    clock_setting = 0;
+                    freezeDisplay = false;
+                    current_datetime = new_datetime;
+                    rtc_write_datetime(current_datetime);
+                    break;
+                }
+            }
+        }
+
+        if (clock_setting==1){
+            number = new_datetime.day;
+        } else if (clock_setting==2){
+            number = new_datetime.month;
+        } else if (clock_setting==3){
+            number = new_datetime.year;
+        } else if (clock_setting==4){
+            number = new_datetime.hour;
+        } else if (clock_setting==5){
+            number = new_datetime.min;
+        } else if (clock_setting==6){
+            number = new_datetime.sec;
+        }
+        
+        // Handle left movement
+        if (vrx_percent < JOY_THRESHOLD_LOW && !joystick_left) {
+            joystick_left = true;
+            number--;
+        } else if (vrx_percent >= JOY_THRESHOLD_LOW) {
+            joystick_left = false;
+        }
+
+        // Handle right movement
+        if (vrx_percent > JOY_THRESHOLD_HIGH && !joystick_right) {
+            joystick_right = true;
+            number++;
+        } else if (vrx_percent <= JOY_THRESHOLD_HIGH) {
+            joystick_right = false;
+        }
+
+        if (clock_setting==1){
+            if (number > 31) number = 1;
+            if (number < 1)  number = 31;
+            new_datetime.day = number;
+            //new_datetime.dotw = (int8_t)calculate_new_dotw(current_datetime, new_datetime);
+        } else if (clock_setting==2){
+            if (number > 12) number = 1;
+            if (number < 1)  number = 12;
+            new_datetime.month = number;
+        } else if (clock_setting==3){
+            if (number > 9999) number = 1;
+            if (number < 1)  number = 9999;
+            new_datetime.year = number;
+        } else if (clock_setting==4){
+            if (number > 23) number = 0;
+            if (number < 0)  number = 23;
+            new_datetime.hour = number;
+        } else if (clock_setting==5){
+            if (number > 59) number = 0;
+            if (number < 0)  number = 59;
+            new_datetime.min = number;
+        } else if (clock_setting==6){
+            if (number > 59) number = 0;
+            if (number < 0)  number = 59;
+            new_datetime.sec = number;
+        }
+
+        display_render_datetime(new_datetime);
+        sleep_ms(50);
+    }
+}
+
 
 // Function to handle button press
 bool check_button(uint button_pin, uint hold_time, Button *btn_hdl) {
@@ -118,6 +236,7 @@ void is_button_a_held()
     if(check_button(BITDOG_BTN_A, HOLD_TIME_MS, &btn_a)){
         sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
         printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
+        printf("PERFORM TASK A\n");
     }
 }
 
@@ -126,6 +245,8 @@ void is_button_b_held()
     if(check_button(BITDOG_BTN_B, HOLD_TIME_MS, &btn_b)){
         sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
         printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
+        clock_setting = 1;
+        handle_datetime_setting();
     }
 }
 
@@ -247,29 +368,38 @@ bool buzzer_timer_callback(struct repeating_timer *t) {
 }
 
 bool invert_display_timer_callback(struct repeating_timer *t) {
-    if(isDispInverted){
-        SSD1306_send_cmd(SSD1306_SET_NORM_DISP);
-    } else {
-        SSD1306_send_cmd(SSD1306_SET_INV_DISP);
+    if(!freezeDisplay)
+    {
+        if(isDispInverted){
+            SSD1306_send_cmd(SSD1306_SET_NORM_DISP);
+        } else {
+            SSD1306_send_cmd(SSD1306_SET_INV_DISP);
+        }
+        isDispInverted = !isDispInverted;
     }
-    isDispInverted = !isDispInverted;
 }
 
 bool update_display_timer_callback(struct repeating_timer *t) {
-    rtc_read_datetime(&current_datetime);
-    display_render_datetime(current_datetime);
+    if(!freezeDisplay)
+    {
+        rtc_read_datetime(&current_datetime);
+        display_render_datetime(current_datetime);
+    }
 }
 
 bool scroll_display_timer_callback(struct repeating_timer *t) {
-    if(scroll_state == 1){
-        SSD1306_scroll(true);
-    } else if(scroll_state == 2){
-        SSD1306_scroll(false);
-    } else{
-        scroll_state = 0;
-    }
+    if(!freezeDisplay)
+    {
+        if(scroll_state == 1){
+            SSD1306_scroll(true);
+        } else if(scroll_state == 2){
+            SSD1306_scroll(false);
+        } else{
+            scroll_state = 0;
+        }
 
-    scroll_state++;
+        scroll_state++;
+    }
 }
 
 /*******************/ 
@@ -379,12 +509,12 @@ int main()
             bazz_player_stop_tone(BITDOG_BZZ_B);
             gpio_set_function(BITDOG_BZZ_B, GPIO_FUNC_NULL);
             isBuzzerPlaying = false;
+            char alarmText[4][20] = {"ALARM!", " ALARM!", "  ALARM!", "ALARM!"};
+            display_render_text(alarmText);
         }
 
-        //display_transition(display_buffer, &frame_area);
-    
         // Check if both buttons are pressed simultaneously
-        if (gpio_get(BITDOG_BTN_A) == 0 && gpio_get(BITDOG_BTN_B) == 0) {
+        if (gpio_get(BITDOG_BTN_A) == 0 && gpio_get(BITDOG_BTN_B) == 0 && triggerAlarm == true) {
             sleep_ms(50); // Small delay to debounce buttons
             triggerAlarm = false; // Disable the alarm
             printf("Buttons pressed: Alarm disabled.\n");
