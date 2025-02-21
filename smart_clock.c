@@ -32,7 +32,7 @@
 //#include "midis/cantode.h"
 //#include "midis/creep.h"
 
-#define HOLD_TIME_MS 3000      // Time to hold (5 seconds)
+#define HOLD_TIME_MS 2000      // Time to hold (2 seconds)
 
 // Global Flags
 bool isLedImgOn      = false;
@@ -53,6 +53,8 @@ typedef enum {
 
 ButtonState button_state = IDLE;
 uint32_t press_start_time = 0;
+uint8_t data[3] = {25, 2, 19};  // Dia: 24, Mês: 9, Ano: 24 (2024)
+uint8_t hora[3] = {22, 51, 0};  // Hora: 13, Minuto: 27, Segundos: 0
 uint8_t scroll_state;
 
 // Function to handle button press
@@ -75,7 +77,7 @@ void check_button() {
                 uint32_t elapsed_time = to_ms_since_boot(get_absolute_time()) - press_start_time;
                 if (elapsed_time >= HOLD_TIME_MS) {
                     // Button held long enough
-                    printf("Button held for 5 seconds!\n");
+                    printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
                     button_state = HELD;
                 }
             } else {
@@ -238,9 +240,6 @@ int main()
     struct repeating_timer timer_leds, timer_buzzers, 
                             timer_disp_inv, timer_disp_update, timer_disp_scroll;
 
-    //float brightness = 0.1;
-    Melody alarmTune = nokia;
-    //Midi alarmTune = never_gonna_give_you_up;
     
     // useful information for picotool
     bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
@@ -251,7 +250,7 @@ int main()
     config_i2c_port(BITDOG_DISP_PORT, SSD1306_I2C_CLK, BITDOG_DISP_SDA, BITDOG_DISP_SCL);
     config_i2c_port(BITDOG_RTC_PORT, 400, BITDOG_RTC_SDA, BITDOG_RTC_SCL);
 
-    // run through the complete initialization process
+    // Run through the complete SSD1306 initialization process
     SSD1306_init();
 
     // Initialize GPIO for buzzer
@@ -268,12 +267,10 @@ int main()
     gpio_pull_up(BITDOG_BTN_A); // Enable internal pull-up resistor
     gpio_pull_up(BITDOG_BTN_B); // Enable internal pull-up resistor
 
-    // Initialize ADC for Vrx and Vry
+    // Initializes Joystick
     adc_init();
     adc_gpio_init(BITDOG_JOY_VRX);
     adc_gpio_init(BITDOG_JOY_VRY);
-
-    // Initialize button
     gpio_init(BITDOG_JOY_SW);
     gpio_set_dir(BITDOG_JOY_SW, GPIO_IN);
     gpio_pull_up(BITDOG_JOY_SW);
@@ -283,12 +280,16 @@ int main()
         printf("RTC Not Working");
         return 1;
     }
+    //float brightness = 0.1;
+    Led_Image img = moon;
+    Melody alarmTune = nokia;
+    //Midi alarmTune = never_gonna_give_you_up;
     
     uint32_t wait = 10000;
     for (int i = 0; i < alarmTune.length; i++)
         wait += (alarmTune.tempo * 0.004) / alarmTune.durations[i];
 
-    add_repeating_timer_ms(1000, led_timer_callback, &moon, &timer_leds);
+    add_repeating_timer_ms(1000, led_timer_callback, &img, &timer_leds);
     add_repeating_timer_ms(wait, buzzer_timer_callback, NULL, &timer_buzzers);
     add_repeating_timer_ms(2000, invert_display_timer_callback, NULL, &timer_disp_inv);
     add_repeating_timer_ms(1000, update_display_timer_callback, NULL, &timer_disp_update);
