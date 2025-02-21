@@ -39,10 +39,12 @@ set(DESTINATION_DIR ${CMAKE_BINARY_DIR})
 # Define the SSD1306 directory in the build output
 set(SSD1306_DIR ${CMAKE_CURRENT_LIST_DIR}/ssd1306)
 
+# Define the WS2812 directory in the build output
+set(WS2812_DIR ${CMAKE_CURRENT_LIST_DIR}/ws2812)
+
 # Define the includes and sources directories in the build output
 set(INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/inc)
 set(SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
-
 
 # Add executable. Default name is the project name, version 0.1
 add_executable(smart_clock 
@@ -51,13 +53,16 @@ add_executable(smart_clock
             ${SOURCE_DIR}/media_player.c
             ${SOURCE_DIR}/rtc.c 
             ${SSD1306_DIR}/ssd1306.c
+#            ${WS2812_DIR}/ws2812.c        ## Do not unconmment   
             )
 
 pico_set_program_name(smart_clock "smart_clock")
 pico_set_program_version(smart_clock "0.1")
 
 # Generate PIO header
-pico_generate_pio_header(smart_clock ${CMAKE_CURRENT_LIST_DIR}/blink.pio ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
+pico_generate_pio_header(smart_clock 
+            ${WS2812_DIR}/ws2812.pio
+            )
 
 # Add the standard library to the build
 target_link_libraries(smart_clock
