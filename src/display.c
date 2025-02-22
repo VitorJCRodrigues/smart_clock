@@ -61,12 +61,15 @@ void display_render_text(char output[][20])
     render(display_buffer, &frame_area);
 }
 
-void display_render_datetime(datetime_t datetime)
+void display_render_datetime(datetime_t datetime, char* alarmLine)
 {
     int y = 0;
     char text_to_render[4][20];
+    char *alarm = alarmLine;
     sprintf(text_to_render[0], "%02d-%02d-%04d", datetime.day, datetime.month, (datetime.year));
     sprintf(text_to_render[1], "%02d:%02d:%02d", datetime.hour, datetime.min, datetime.sec);
+
+    sprintf(text_to_render[3], alarm);
 
     if (datetime.dotw== 0){
         strcpy(text_to_render[2], "Sunday");
@@ -82,8 +85,6 @@ void display_render_datetime(datetime_t datetime)
         strcpy(text_to_render[2], "Friday");
     } else if (datetime.dotw== 6){
         strcpy(text_to_render[2], "Saturday");
-    } else if (datetime.dotw== 7){
-        strcpy(text_to_render[2], "Octofeira");
     }
 
     display_render_text(text_to_render);

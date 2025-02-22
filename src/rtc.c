@@ -12,6 +12,8 @@
 #include <hardware/i2c.h>
 #include <hardware/rtc.h>
 
+#define DATETIME_BUFFER_SIZE 9
+
 static bool is_leap_year(int year) {
     return ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0));
 }
@@ -34,7 +36,7 @@ static uint8_t bcd_to_dec(uint8_t val) {
 
 static uint8_t* datetime_to_uint(datetime_t datetime)
 {
-    static uint8_t buffer[8];
+    static uint8_t buffer[DATETIME_BUFFER_SIZE];
 
     buffer[0] = 0x00;                            // Byte de endereço: registrador 0x00
     buffer[1] = dec_to_bcd(datetime.sec) & 0x7F;  // Segundos (& bit CH = 0)
@@ -43,7 +45,7 @@ static uint8_t* datetime_to_uint(datetime_t datetime)
     buffer[4] = dec_to_bcd(datetime.dotw);        // Dia da semana
     buffer[5] = dec_to_bcd(datetime.day);         // Dia
     buffer[6] = dec_to_bcd(datetime.month);       // Mês
-    buffer[7] = dec_to_bcd(datetime.year);        // Ano (últimos dois dígitos)
+    buffer[7] = dec_to_bcd(datetime.year-2000);   // Ano (últimos dois dígitos)
 
     return buffer;
 }
@@ -75,13 +77,12 @@ static datetime_t uint_to_datetime(uint8_t *buffer)
 }
 
 bool rtc_write_datetime(datetime_t dt) {
-    printf("SETTING DATE TIME\n");
+    printf("SETTING DATE TIME: %s\n", datetime_to_string(dt));
     uint8_t* buf = datetime_to_uint(dt);
     
     int result = i2c_write_blocking(BITDOG_RTC_PORT, BITDOG_RTC_ADDR, buf,
-                                    sizeof(buf), false);
-    printf("result: %d\n", result);
-    if (result == sizeof(buf)) {
+                                    DATETIME_BUFFER_SIZE, false);
+    if (result == DATETIME_BUFFER_SIZE) {
         printf("RTC configurado para %02d/%02d/%04d - %02d:%02d:%02d\n",
                dt.day,  dt.month, dt.year,
                dt.hour, dt.min,   dt.sec);
@@ -112,9 +113,9 @@ void rtc_read_datetime(datetime_t *datetime) {
     datetime_t current_datetime = uint_to_datetime(buffer);
     
     // Print time
-        printf("Date: %04d-%02d-%02d Time: %02d:%02d:%02d\n",
-               current_datetime.year, current_datetime.month, current_datetime.day,
-               current_datetime.hour, current_datetime.min, current_datetime.sec);
+    //    printf("Date: %04d-%02d-%02d Time: %02d:%02d:%02d\n",
+    //           current_datetime.year, current_datetime.month, current_datetime.day,
+    //           current_datetime.hour, current_datetime.min, current_datetime.sec);
 
     *datetime = current_datetime;
 }
@@ -144,14 +145,27 @@ uint32_t datetime_to_timestamp(datetime_t *dt) {
     return timestamp;
 }
 
-uint8_t calculate_new_dotw(datetime_t old_dt, datetime_t new_dt)
+uint8_t calculate_new_dotw(datetime_t new_dt)
 {
-    uint32_t new_timestamp, old_timestamp;
-
-    old_timestamp = datetime_to_timestamp(&old_dt);
-    new_timestamp = datetime_to_timestamp(&new_dt);
-    uint8_t new_day_of_week = (old_dt.dotw + calculate_day_difference(new_timestamp, old_timestamp)) % 7;
+    uint32_t new_timestamp = datetime_to_timestamp(&new_dt);
+    uint8_t new_day_of_week = (new_timestamp % (7 * 86400)) + DOTW_TIMESTAMP_REF - 1;
     if (new_day_of_week <= 0) new_day_of_week += 7;
 
     return new_day_of_week;
+}
+
+bool isAlarmValid(datetime_t alarm_datetime, datetime_t current_datetime)
+{
+    uint32_t alarm_ts = datetime_to_timestamp(&alarm_datetime);
+    uint32_t cur_ts   = datetime_to_timestamp(&current_datetime);
+
+    return (alarm_ts > cur_ts);
+}
+
+char* datetime_to_string(datetime_t dt)
+{
+    static char output[20];
+    sprintf(output, "%02d-%02d-%04d %02d:%02d:%02d", dt.day, dt.month, dt.year, 
+                                                    dt.hour, dt.min, dt.sec);
+    return output;
 }

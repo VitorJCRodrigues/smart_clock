@@ -44,6 +44,7 @@ bool isDispInverted  = false;
 bool freezeDisplay   = false;
 
 int clock_setting = 0;
+int alarm_setting = 0;
 
 // Pin configuration
 #define DEBOUNCE_DELAY_MS 10   // Debounce delay
@@ -80,13 +81,13 @@ Button btn_b = {
 uint8_t scroll_state;
 datetime_t current_datetime;
 
-
 // Joystick thresholds for movement detection
 #define JOY_THRESHOLD_LOW  30
 #define JOY_THRESHOLD_HIGH 70
 
 // Function to handle changing the clock setting
 void handle_datetime_setting() {
+    printf("Setting Clock...\n");
     freezeDisplay = true;
     int number = 0;
     bool joystick_left = false;
@@ -110,17 +111,18 @@ void handle_datetime_setting() {
         // Check if button is pressed
         if (sw_pressed) {
             printf("Button pressed\n");
-            sleep_ms(100);
             if (gpio_get(BITDOG_JOY_SW) == 0) {
                 clock_setting++;
                 if(clock_setting>6){
+                    printf("Setting datetime... [%s] --- > [%s]\n", datetime_to_string(current_datetime), datetime_to_string(new_datetime));
+                    current_datetime = new_datetime;
+                    rtc_write_datetime(new_datetime);
                     clock_setting = 0;
                     freezeDisplay = false;
-                    current_datetime = new_datetime;
-                    rtc_write_datetime(current_datetime);
                     break;
                 }
             }
+            sleep_ms(200);
         }
 
         if (clock_setting==1){
@@ -157,7 +159,7 @@ void handle_datetime_setting() {
             if (number > 31) number = 1;
             if (number < 1)  number = 31;
             new_datetime.day = number;
-            //new_datetime.dotw = (int8_t)calculate_new_dotw(current_datetime, new_datetime);
+            new_datetime.dotw = (int8_t)calculate_new_dotw(new_datetime);
         } else if (clock_setting==2){
             if (number > 12) number = 1;
             if (number < 1)  number = 12;
@@ -180,11 +182,118 @@ void handle_datetime_setting() {
             new_datetime.sec = number;
         }
 
-        display_render_datetime(new_datetime);
+        display_render_datetime(new_datetime, alarmLine);
         sleep_ms(50);
     }
 }
 
+// Function to handle setting an alarm time
+void handle_alarm_setting() {
+    printf("Setting a new Alarm...\n");
+    freezeDisplay = true;
+    int number = 0;
+    bool joystick_left = false;
+    bool joystick_right = false;
+    bool button_pressed = false;
+    absolute_time_t last_move_time = get_absolute_time();
+    datetime_t new_datetime = current_datetime;
+    
+    while (1) {
+        adc_select_input(1);  // ADC0 (Vrx)
+        uint16_t vrx_value = adc_read();
+        adc_select_input(0);  // ADC1 (Vry)
+        uint16_t vry_value = adc_read();
+        bool sw_pressed = gpio_get(BITDOG_JOY_SW) == 0;
+        
+        // Scale the values to 0 - 100
+        int vrx_percent = (vrx_value * 100) / 4095;
+        int vry_percent = (vry_value * 100) / 4095;
+
+        // Check if button is pressed
+        if (sw_pressed) {
+            printf("Button pressed\n");
+            if (gpio_get(BITDOG_JOY_SW) == 0) {
+                alarm_setting++;
+                if(alarm_setting>6){
+                    alarm_setting = 0;
+                    if(isAlarmValid(new_datetime, current_datetime))
+                    {
+                        alarm_time = new_datetime;
+                        printf("New alarm set: [%s]\n", datetime_to_string(new_datetime));
+                        hasAlarmSet = true;
+                        sprintf(alarmLine, " >>>  %02d:%02d:%02d", alarm_time.hour, alarm_time.min, alarm_time.sec);
+                        freezeDisplay = false;
+                        bazz_player_beep(BITDOG_BZZ_B, NOTE_A5, 150);
+                        break;
+                    }
+                    printf("Alarme Invalido! Insira uma data posterior!\n");
+                    bazz_player_beep(BITDOG_BZZ_B, NOTE_A1, 100);
+                }
+            }
+            sleep_ms(200);
+        }
+
+        if (alarm_setting==1){
+            number = new_datetime.day;
+        } else if (alarm_setting==2){
+            number = new_datetime.month;
+        } else if (alarm_setting==3){
+            number = new_datetime.year;
+        } else if (alarm_setting==4){
+            number = new_datetime.hour;
+        } else if (alarm_setting==5){
+            number = new_datetime.min;
+        } else if (alarm_setting==6){
+            number = new_datetime.sec;
+        }
+        
+        // Handle left movement
+        if (vrx_percent < JOY_THRESHOLD_LOW && !joystick_left) {
+            joystick_left = true;
+            number--;
+        } else if (vrx_percent >= JOY_THRESHOLD_LOW) {
+            joystick_left = false;
+        }
+
+        // Handle right movement
+        if (vrx_percent > JOY_THRESHOLD_HIGH && !joystick_right) {
+            joystick_right = true;
+            number++;
+        } else if (vrx_percent <= JOY_THRESHOLD_HIGH) {
+            joystick_right = false;
+        }
+
+        if (alarm_setting==1){
+            if (number > 31) number = 1;
+            if (number < 1)  number = 31;
+            new_datetime.day = number;
+            new_datetime.dotw = (int8_t)calculate_new_dotw(new_datetime);
+        } else if (alarm_setting==2){
+            if (number > 12) number = 1;
+            if (number < 1)  number = 12;
+            new_datetime.month = number;
+        } else if (alarm_setting==3){
+            if (number > 9999) number = 1;
+            if (number < 1)  number = 9999;
+            new_datetime.year = number;
+        } else if (alarm_setting==4){
+            if (number > 23) number = 0;
+            if (number < 0)  number = 23;
+            new_datetime.hour = number;
+        } else if (alarm_setting==5){
+            if (number > 59) number = 0;
+            if (number < 0)  number = 59;
+            new_datetime.min = number;
+        } else if (alarm_setting==6){
+            if (number > 59) number = 0;
+            if (number < 0)  number = 59;
+            new_datetime.sec = number;
+        }
+
+        display_render_datetime(new_datetime, alarmLine);
+        sleep_ms(50);
+    }
+}
 
 // Function to handle button press
 bool check_button(uint button_pin, uint hold_time, Button *btn_hdl) {
@@ -230,13 +339,13 @@ bool check_button(uint button_pin, uint hold_time, Button *btn_hdl) {
     return ret;
 }
 
-
 void is_button_a_held()
 {
     if(check_button(BITDOG_BTN_A, HOLD_TIME_MS, &btn_a)){
         sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
         printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
-        printf("PERFORM TASK A\n");
+        alarm_setting = 1;
+        handle_alarm_setting();
     }
 }
 
@@ -383,7 +492,7 @@ bool update_display_timer_callback(struct repeating_timer *t) {
     if(!freezeDisplay)
     {
         rtc_read_datetime(&current_datetime);
-        display_render_datetime(current_datetime);
+        display_render_datetime(current_datetime, alarmLine);
     }
 }
 
@@ -402,6 +511,25 @@ bool scroll_display_timer_callback(struct repeating_timer *t) {
     }
 }
 
+bool check_alarm_timer_callback(struct repeating_timer *t) {
+    uint32_t seconds_remaining;
+
+    if(hasAlarmSet)
+    {
+        printf("Detectei um alarme programado para %s\n", datetime_to_string(alarm_time));
+
+        seconds_remaining = (datetime_to_timestamp(&alarm_time) - datetime_to_timestamp(&current_datetime));
+        printf("Faltam %d segundos para o próximo alarme.\n", seconds_remaining);    
+        if(seconds_remaining < 1)
+        {
+            printf("HORA DO ALARME!! HORA DO ALARME!! HORA DO ALARME!!\n");
+            hasAlarmSet = false;
+            triggerAlarm = true;
+            strcpy(alarmLine, "");
+        }
+    }
+}
+
 /*******************/ 
 
 int main() 
@@ -414,7 +542,8 @@ int main()
     gpio_set_function(9, GPIO_FUNC_UART);
     
     struct repeating_timer timer_leds, timer_buzzers, 
-                            timer_disp_inv, timer_disp_update, timer_disp_scroll;
+                            timer_disp_inv, timer_disp_update, timer_disp_scroll,
+                            timer_check_alarm;
 
     
     // useful information for picotool
@@ -472,8 +601,9 @@ int main()
     add_repeating_timer_ms(2000, invert_display_timer_callback, NULL, &timer_disp_inv);
     add_repeating_timer_ms(1000, update_display_timer_callback, NULL, &timer_disp_update);
     //add_repeating_timer_ms(1500, scroll_display_timer_callback, NULL, &timer_disp_scroll);
+    add_repeating_timer_ms(1000, check_alarm_timer_callback, NULL, &timer_check_alarm);
 
-    //if(triggerAlarm) playAlarm = true; // Immediatly triggers the melody the first time if alarm is already triggering.
+    if(triggerAlarm) playAlarm = true; // Immediatly triggers the melody the first time if alarm is already triggering.
 
     scroll_state = 0;
 
@@ -496,8 +626,12 @@ int main()
 
     while(true)
     {
-        is_button_a_held();
-        is_button_b_held();
+        // Handle detection for Command A (Hold button A) and Command B (Hold Button B)
+        if(!triggerAlarm) // Ignore command detection when Alarm event is running
+        {
+            is_button_a_held();
+            is_button_b_held();
+        }
         
         // Handle alarm logic
         if(isBuzzerPlaying == false && triggerAlarm == true && playAlarm == true){
@@ -519,8 +653,6 @@ int main()
             triggerAlarm = false; // Disable the alarm
             printf("Buttons pressed: Alarm disabled.\n");
         }
-
-        //read_joystick();
     }
 
     return 0;

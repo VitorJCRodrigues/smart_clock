@@ -68,3 +68,11 @@ void bazz_player_play_midi(uint gpio_pin, Midi midi)
         sleep_ms(50); // Short pause between notes
     }
 }
+
+void bazz_player_beep(uint gpio_pin, uint frequency, uint time_ms)
+{
+    bazz_player_init(gpio_pin);
+    bazz_player_play_tone(gpio_pin, frequency);
+    sleep_ms(time_ms);
+    bazz_player_stop_tone(gpio_pin);
+}

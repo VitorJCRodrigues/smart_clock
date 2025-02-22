@@ -31,4 +31,6 @@ void bazz_player_play_melody(uint gpio_pin, Melody melody);
 // Play a converted MIDI file
 void bazz_player_play_midi(uint gpio_pin, Midi midi);
 
+void bazz_player_beep(uint gpio_pin, uint frequency, uint time_ms);
+
 #endif //MEDIA_PLAYER_H
