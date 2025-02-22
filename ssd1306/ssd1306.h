@@ -80,6 +80,18 @@ inline int GetFontIndex(uint8_t ch) {
     else if (ch >= '0' && ch <='9') {
         return  ch - '0' + 27;
     }
+    else if (ch >= '!' && ch <= '/') {
+        return ch - '!' + 37;
+    }
+    else if (ch >= ':' && ch <= '@') {
+        return ch - ':' + 52;
+    }
+    else if (ch >= '[' && ch <= '`') {
+        return ch - '[' + 59;
+    }
+    else if (ch >= '{' && ch <= '~') {
+        return ch - '{' + 65;
+    }
     else return  0; // Not got that char so space.
 }
 void WriteChar(uint8_t *buf, int16_t x, int16_t y, uint8_t ch);
