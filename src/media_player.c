@@ -191,6 +191,14 @@ Melody *bazz_player_melody_select(melos selector)
         return &nokia;
     case TETRIS:
         return &tetris;
+    case SIMPSONS:
+        return &simpsons;
+    case MARIO:
+        return &mario_bros;
+    case DOOM:
+        return &doom;
+    case PANTHER:
+        return &pink_panther;
     default:
         return NULL; // Return NULL for invalid selections
     }

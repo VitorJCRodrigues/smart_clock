@@ -15,6 +15,10 @@ typedef enum
     PACMAN,
     NOKIA,
     TETRIS,
+    SIMPSONS,
+    MARIO,
+    DOOM,
+    PANTHER,
     MELO_QTT
 } melos;
 

@@ -91,7 +91,7 @@ Button buttonB = {
 
 // Text Labels for the pixel arts (icons -> i_names) and songs (melodies -> m_names).
 char i_names[ICONS_QTT + 1][16] = {"Cat", "Dog", "Water", "Heart", "Pill", "Hospital", "Sun", "Star", "Moon", ""};
-char m_names[MELO_QTT + 1][16] = {"Pacman", "Nokia", "Tetris", ""};
+char m_names[MELO_QTT + 1][16] = {"Pacman", "Nokia", "Tetris", "Simpsons", "Mario Bros.", "Doom", "Pink Panther", ""};
 
 // Function to handle changing the clock setting
 void handle_datetime_setting()
