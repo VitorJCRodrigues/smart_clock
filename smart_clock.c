@@ -28,34 +28,59 @@
 //#include "midis/cantode.h"
 //#include "midis/creep.h"
 
+#define HOLD_TIME_MS 3000      // Time to hold
+
+typedef struct {
+    int index;
+    int setting;
+    bool isSet;
+    bool trigger;
+    char textLine[32];
+    datetime_t datetime;
+    Led_Image *img;
+    Melody *tune;
+} Alarm;
+
 // Global Flags
 bool isLedImgOn      = false;
-bool isBuzzerPlaying = false;
-bool triggerAlarm    = false;
 bool playAlarm       = false;
 bool isDispInverted  = false;
 bool freezeDisplay   = false;
+bool hasAlarmSet     = false;
 
+// Global Variables
 int clock_setting = 0;
-int alarm_setting = 0;
+datetime_t current_datetime;
 
-int led_images_counter = 0;
-int led_index = 0;
+Alarm alarm1 = {
+    .index = 1,
+    .setting = 0,
+    .isSet = false,
+    .trigger = false,
+    .textLine = "",
+    .datetime = {
+        .day=1,  .month=1, .year=1970,
+        .hour=0, .min=0,   .sec=0,
+        .dotw=4
+    },
+    .img = NULL,
+    .tune = NULL,
+};
 
-#define HOLD_TIME_MS 3000      // Time to hold
-
-char i_names[ICONS_QTT+1][16] = {"Cat", "Dog", "Water", "Heart", "Pill", "Hospital", "Sun", "Star", "Moon", ""};
-char m_names[MELO_QTT+1][16] = {"Pacman", "Nokia", "Tetris", ""};
-
-bool hasAlarmSet = false;
-char alarmLine[32] = "";
-datetime_t alarm_time = {
-    .day=1, .month=1, .year=1970,
-    .hour=0, .min=0, .sec=0, 
-    .dotw=0
-    };
-Led_Image *alarmImg;
-Melody *alarmTune;
+Alarm alarm2 = {
+    .index = 2,
+    .setting = 0,
+    .isSet = false,
+    .trigger = false,
+    .textLine = "",
+    .datetime = {
+        .day=1,  .month=1, .year=1970,
+        .hour=0, .min=0,   .sec=0,
+        .dotw=4
+    },
+    .img = NULL,
+    .tune = NULL,
+};
 
 Button btn_a = {
     .state = IDLE, .press_time = 0, .isDone = false,
@@ -65,7 +90,9 @@ Button btn_b = {
     .state = IDLE, .press_time = 0, .isDone = false,
 };
 
-datetime_t current_datetime;
+// Text Labels for the pixel arts (icons -> i_names) and songs (melodies -> m_names).
+char i_names[ICONS_QTT+1][16] = {"Cat", "Dog", "Water", "Heart", "Pill", "Hospital", "Sun", "Star", "Moon", ""};
+char m_names[MELO_QTT+1][16]  = {"Pacman", "Nokia", "Tetris", ""};
 
 // Function to handle changing the clock setting
 void handle_datetime_setting() {
@@ -166,7 +193,7 @@ void handle_datetime_setting() {
                 break;
         }
 
-        display_render_datetime(new_datetime, "", alarmLine);
+        display_render_datetime(new_datetime, alarm2.textLine, alarm1.textLine);
         sleep_ms(50);
     }
 }
@@ -185,10 +212,13 @@ void handle_alarm_setting() {
     int melody_selector = MELO_QTT;
     char imgName[16] = "";
     char melodyName[16] = "";
+
+    // Determine which alarm to set
+    Alarm *current_alarm = (alarm1.isSet) ? &alarm2 : &alarm1;
+    bool is_alarm1_busy = alarm1.isSet;  
     
     while (1) {
-        if(!clock_read_joystick(&joy_hdl))
-        {
+        if(!clock_read_joystick(&joy_hdl)) {
             printf("Failed to read joystick data.\n");
         }
 
@@ -196,20 +226,21 @@ void handle_alarm_setting() {
         if (joy_hdl.sw_pressed) {
             printf("Button pressed\n");
             if (gpio_get(BITDOG_JOY_SW) == 0) {
-                alarm_setting++;
-                if(alarm_setting == DONE){
-                    alarm_setting = DAY;
+                current_alarm->setting++;
+                
+                if(current_alarm->setting == DONE){
+                    current_alarm->setting = DAY;
                     if(isAlarmValid(new_datetime, current_datetime))
                     {
-                        alarm_setting = OFF;
-                        alarm_time = new_datetime;
-                        printf("New alarm set: [%s]\n", datetime_to_string(new_datetime));
+                        current_alarm->setting = OFF;
+                        current_alarm->datetime = new_datetime;
+                        printf("New 1 alarm set: [%s]\n", datetime_to_string(new_datetime));
+                        current_alarm->isSet = true;
                         hasAlarmSet = true;
-                        printf(" >>>  %02d:%02d:%02d\n", alarm_time.hour, alarm_time.min, alarm_time.sec);
-                        snprintf(alarmLine, sizeof(alarmLine), "1>>>  %02d:%02d:%02d", alarm_time.hour, alarm_time.min, alarm_time.sec);
-                        display_render_datetime(new_datetime, "", alarmLine);
-                        alarmImg = pixel_leds_art_select(img_selector);
-                        alarmTune= bazz_player_melody_select(melody_selector);
+                        snprintf(current_alarm->textLine, sizeof(current_alarm->textLine), "%d>>>  %02d:%02d:%02d", current_alarm->index, current_alarm->datetime.hour, current_alarm->datetime.min, current_alarm->datetime.sec);
+                        display_render_datetime(new_datetime, alarm2.textLine, alarm1.textLine);
+                        current_alarm->img = pixel_leds_art_select(img_selector);
+                        current_alarm->tune= bazz_player_melody_select(melody_selector);
                         freezeDisplay = false;
                         bazz_player_beep(BITDOG_BZZ_B, NOTE_A5, 150);
                         break;
@@ -221,19 +252,7 @@ void handle_alarm_setting() {
             sleep_ms(200);
         }
 
-        switch (alarm_setting)
-        {
-        case DAY:   number = new_datetime.day; break;
-        case MONTH: number = new_datetime.month; break;
-        case YEAR:  number = new_datetime.year; break;
-        case HOUR:  number = new_datetime.hour; break;
-        case MIN:   number = new_datetime.min; break;
-        case SEC:   number = new_datetime.sec; break;
-        case IMG:   number = img_selector; break;
-        case MELO:  number = melody_selector; break;
-        default:
-            break;
-        }
+        number = get_number_from_setting(current_alarm->setting, new_datetime, img_selector, melody_selector);
         
         // Handle left movement
         if (joy_hdl.vrx_percent < JOY_THRESHOLD_LOW && !joystick_left) {
@@ -251,7 +270,7 @@ void handle_alarm_setting() {
             joystick_right = false;
         }
 
-        switch (alarm_setting) {
+        switch (current_alarm->setting) {
             case DAY:
                 if (number > 31) number = 1;
                 if (number < 1)  number = 31;
@@ -281,6 +300,7 @@ void handle_alarm_setting() {
                 if (number > 59) number = 0;
                 if (number < 0)  number = 59;
                 new_datetime.sec = number;
+                new_datetime.dotw = (int8_t)calculate_new_dotw(new_datetime);
                 break;
             case IMG:
                 if (number >= ICONS_QTT) number = 0;
@@ -291,10 +311,9 @@ void handle_alarm_setting() {
                 if (number >= MELO_QTT) number = 0;
                 if (number < 0) number = MELO_QTT - 1;
                 melody_selector = number;
-                new_datetime.dotw = (int8_t)calculate_new_dotw(new_datetime);
                 break;
             default:
-                printf("Invalid alarm setting: %d\n", alarm_setting);
+                printf("Invalid alarm setting: %d\n", current_alarm->setting);
                 break;
         }
 
@@ -306,63 +325,19 @@ void handle_alarm_setting() {
     }
 }
 
-// Function to handle button press
-bool check_button(uint button_pin, uint hold_time, Button *btn_hdl) {
-    bool is_pressed = (gpio_get(button_pin) == 0);
-    bool ret = false;
-
-    switch (btn_hdl->state) {
-        case IDLE:
-            if (is_pressed) {
-                sleep_ms(DEBOUNCE_DELAY_MS);  // Add debounce delay here
-                if (gpio_get(button_pin) == 0) { // Confirm button is still pressed
-                    btn_hdl->press_time = to_ms_since_boot(get_absolute_time());
-                    btn_hdl->state = PRESSED;
-                    btn_hdl->isDone = false;
-                }
-            }
-            break;
-
-        case PRESSED:
-            if (is_pressed) {
-                // Button still held, check duration
-                uint32_t elapsed_time = to_ms_since_boot(get_absolute_time()) - btn_hdl->press_time;
-                if (elapsed_time >= hold_time && !(btn_hdl->isDone)) {
-                    btn_hdl->isDone = true; // Mark task as done
-                    btn_hdl->state = HELD; // Immediately go to HELD state
-                    ret = true;
-                }
-            } else {
-                // Button released before hold time
-                btn_hdl->state = IDLE;
-            }
-            break;
-
-        case HELD:
-            if (!is_pressed) {
-                // Button released, go back to IDLE
-                btn_hdl->state = IDLE;
-                btn_hdl->isDone = false; // Reset the task flag
-            }
-            break;
-    }
-
-    return ret;
-}
-
 void is_button_a_held(uint32_t hold_time_ms)
 {
-    if(check_button(BITDOG_BTN_A, hold_time_ms, &btn_a)){
+    if(clock_check_button(BITDOG_BTN_A, hold_time_ms, &btn_a)){
         sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
         printf("Button held for %d seconds!\n", hold_time_ms/1000);
-        alarm_setting = 1;
+        alarm1.setting = 1;
         handle_alarm_setting();
     }
 }
 
 void is_button_b_held(uint32_t hold_time_ms)
 {
-    if(check_button(BITDOG_BTN_B, hold_time_ms, &btn_b)){
+    if(clock_check_button(BITDOG_BTN_B, hold_time_ms, &btn_b)){
         sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
         printf("Button held for %d seconds!\n", hold_time_ms/1000);
         clock_setting = 1;
@@ -395,9 +370,12 @@ void display_init()
  * Timer Callbacks *
  *******************/ 
 bool led_timer_callback(struct repeating_timer *t) {
-    if(triggerAlarm == true && isLedImgOn == false){
-        pixel_leds_send_data(alarmImg, 0.1);
+    if(alarm1.trigger == true && isLedImgOn == false){
+        pixel_leds_send_data(alarm1.img, 0.1);
         isLedImgOn = true;
+    } else if(alarm2.trigger == true && isLedImgOn == false){
+        pixel_leds_send_data(alarm2.img, 0.1);
+        isLedImgOn = true; 
     } else {
         pixel_leds_turn_off();
         isLedImgOn = false;
@@ -411,7 +389,7 @@ bool buzzer_timer_callback(struct repeating_timer *t) {
 }
 
 bool invert_display_timer_callback(struct repeating_timer *t) {
-    if(triggerAlarm)
+    if(alarm1.trigger || alarm2.trigger)
     {
         if(isDispInverted){
             SSD1306_send_cmd(SSD1306_SET_NORM_DISP);
@@ -426,7 +404,7 @@ bool update_display_timer_callback(struct repeating_timer *t) {
     if(!freezeDisplay)
     {
         rtc_read_datetime(&current_datetime);
-        display_render_datetime(current_datetime, "", alarmLine);
+        display_render_datetime(current_datetime, alarm2.textLine, alarm1.textLine);
     }
 }
 
@@ -435,15 +413,34 @@ bool check_alarm_timer_callback(struct repeating_timer *t) {
 
     if(hasAlarmSet)
     {
-        //printf("Detectei um alarme programado para %s\n", datetime_to_string(alarm_time));
-        seconds_remaining = (datetime_to_timestamp(&alarm_time) - datetime_to_timestamp(&current_datetime));
-        //printf("Faltam %d segundos para o próximo alarme.\n", seconds_remaining);    
-        if(seconds_remaining < 1)
+        if(alarm1.isSet)
         {
-            //printf("HORA DO ALARME!! HORA DO ALARME!! HORA DO ALARME!!\n");
-            hasAlarmSet = false;
-            triggerAlarm = true;
-            strcpy(alarmLine, "");
+            printf("Detectei um alarme programado para %s\n", datetime_to_string(alarm1.datetime));
+            seconds_remaining = (datetime_to_timestamp(&alarm1.datetime) - datetime_to_timestamp(&current_datetime));
+            printf("Faltam %d segundos para o próximo alarme.\n", seconds_remaining);    
+            if(seconds_remaining < 1)
+            {
+                //printf("HORA DO ALARME!! HORA DO ALARME!! HORA DO ALARME!!\n");
+                alarm1.isSet = false;
+                alarm1.trigger = true;
+                strcpy(alarm1.textLine, "");
+                if(!alarm2.isSet) hasAlarmSet = false;
+            }
+        }
+
+        if(alarm2.isSet)
+        {
+            printf("Detectei um alarme programado para %s\n", datetime_to_string(alarm2.datetime));
+            seconds_remaining = (datetime_to_timestamp(&alarm2.datetime) - datetime_to_timestamp(&current_datetime));
+            printf("Faltam %d segundos para o próximo alarme.\n", seconds_remaining);    
+            if(seconds_remaining < 1)
+            {
+                //printf("HORA DO ALARME!! HORA DO ALARME!! HORA DO ALARME!!\n");
+                alarm2.isSet = false;
+                alarm2.trigger = true;
+                strcpy(alarm2.textLine, "");
+                if(!alarm1.isSet) hasAlarmSet = false;
+            }
         }
     }
 }
@@ -492,34 +489,43 @@ int main()
     // Initialize Joystick
     clock_init_joystick(BITDOG_JOY_VRX, BITDOG_JOY_VRY, BITDOG_JOY_SW);
 
-    alarmTune = melody_init();
-    //Midi alarmTune = alex_underwater;
+    alarm1.tune = melody_init();
+    alarm2.tune = melody_init();
+    //Midi alarm1.tune = alex_underwater;
     
     uint32_t wait = 5000;
-    for (int i = 0; i < alarmTune->length; i++)
-        wait += (alarmTune->tempo * 0.004) / alarmTune->durations[i];
-
-    alarmImg = pixel_leds_init();
+    for (int i = 0; i < alarm1.tune->length; i++)
+        wait += (alarm1.tune->tempo * 0.004) / alarm1.tune->durations[i];
 
     display_init();
 
-    add_repeating_timer_ms(1000, led_timer_callback, alarmImg, &timer_leds);
+    add_repeating_timer_ms(1000, led_timer_callback, NULL, &timer_leds);
     add_repeating_timer_ms(wait, buzzer_timer_callback, NULL, &timer_buzzers);
     add_repeating_timer_ms(2000, invert_display_timer_callback, NULL, &timer_disp_inv);
     add_repeating_timer_ms(1000, update_display_timer_callback, NULL, &timer_disp_update);
     add_repeating_timer_ms(1000, check_alarm_timer_callback, NULL, &timer_check_alarm);
 
-    if(triggerAlarm) playAlarm = true; // Immediatly triggers the melody the first time if alarm is already triggering.
+    if(alarm1.trigger || alarm2.trigger) playAlarm = true; // Immediatly triggers the melody the first time if alarm is already triggering.
 
     while(true)
     {   
         // Handle alarm logic
-        if(!bazz_player_is_melody_playing() && triggerAlarm && playAlarm)
+        if(!bazz_player_is_melody_playing() && alarm1.trigger && playAlarm)
         {
             playAlarm = false;
             printf("Starting alarm melody\n");
-            bazz_player_play_melody(BITDOG_BZZ_B, *alarmTune);
-            //play_midi(BITDOG_BZZ_B, alarmTune);
+            bazz_player_play_melody(BITDOG_BZZ_B, *alarm1.tune);
+            //play_midi(BITDOG_BZZ_B, alarm1.tune);
+            freezeDisplay = true;
+            char alarmText[4][20] = {"      ALARM!", "         ALARM!", "    ALARM!", "ALARM!"};
+            display_render_text(alarmText);
+        }
+        else if(!bazz_player_is_melody_playing() && alarm2.trigger && playAlarm)
+        {
+            playAlarm = false;
+            printf("Starting alarm melody\n");
+            bazz_player_play_melody(BITDOG_BZZ_B, *alarm2.tune);
+            //play_midi(BITDOG_BZZ_B, alarm2.tune);
             freezeDisplay = true;
             char alarmText[4][20] = {"      ALARM!", "         ALARM!", "    ALARM!", "ALARM!"};
             display_render_text(alarmText);
@@ -531,8 +537,9 @@ int main()
         
 
         // Check if both buttons are pressed simultaneously
-        if (gpio_get(BITDOG_BTN_A) == 0 && gpio_get(BITDOG_BTN_B) == 0 && triggerAlarm == true) {
-            triggerAlarm = false; // Disable the alarm
+        if (gpio_get(BITDOG_BTN_A) == 0 && gpio_get(BITDOG_BTN_B) == 0 && (alarm1.trigger || alarm2.trigger)) {
+            if(alarm1.trigger) alarm1.trigger = false; // Disable the alarm
+            if(alarm2.trigger) alarm2.trigger = false; // Disable the alarm
             freezeDisplay = false;
             printf("Buttons pressed: Alarm disabled.\n");
             bazz_player_stop_melody();

@@ -34,6 +34,8 @@ void rtc_read_datetime(datetime_t *datetime);
 
 uint32_t datetime_to_timestamp(datetime_t *dt);
 
+datetime_t timestamp_to_datetime(uint32_t timestamp);
+
 uint8_t calculate_new_dotw(datetime_t new_dt);
 
 bool isAlarmValid(datetime_t alarm_datetime, datetime_t current_datetime);

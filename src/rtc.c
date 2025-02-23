@@ -145,6 +145,44 @@ uint32_t datetime_to_timestamp(datetime_t *dt) {
     return timestamp;
 }
 
+// Function to convert a timestamp to datetime_t
+datetime_t timestamp_to_datetime(uint32_t timestamp) {
+    datetime_t dt;
+
+    // Constants for time calculations
+    const int seconds_per_minute = 60;
+    const int seconds_per_hour = 3600;
+    const int seconds_per_day = 86400;
+
+    // Calculate the number of days since the Unix epoch (January 1, 1970)
+    uint32_t days_since_epoch = timestamp / seconds_per_day;
+    dt.sec = timestamp % seconds_per_minute;
+    dt.min = (timestamp % seconds_per_hour) / seconds_per_minute;
+    dt.hour = (timestamp % seconds_per_day) / seconds_per_hour;
+
+    // Calculate the day of the week (0 = Sunday, 6 = Saturday)
+    dt.dotw = (days_since_epoch + 4) % 7; // January 1, 1970, was a Thursday (4)
+
+    // Calculate the year and day of the year
+    int year = 1970;
+    while (days_since_epoch >= 365 + is_leap_year(year)) {
+        days_since_epoch -= 365 + is_leap_year(year);
+        year++;
+    }
+    dt.year = year;
+
+    // Calculate the month and day of the month
+    int month = 1;
+    while (days_since_epoch >= days_in_month(month, year)) {
+        days_since_epoch -= days_in_month(month, year);
+        month++;
+    }
+    dt.month = month;
+    dt.day = days_since_epoch + 1; // Days are 1-based
+
+    return dt;
+}
+
 uint8_t calculate_new_dotw(datetime_t new_dt)
 {
     uint32_t new_timestamp = datetime_to_timestamp(&new_dt);

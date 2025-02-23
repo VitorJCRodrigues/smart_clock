@@ -56,5 +56,9 @@ void clock_init_button(uint BUTTON_PIN);
 
 void clock_init_joystick(uint JOY_X_PIN, uint JOY_Y_PIN, uint JOY_SW_PIN);
 
+// Function to handle button press
+bool clock_check_button(uint button_pin, uint hold_time, Button *btn_hdl);
+
+int get_number_from_setting(int alarm_setting, datetime_t new_datetime, int img_selector, int melody_selector);
 
 #endif //CLOCK_H
