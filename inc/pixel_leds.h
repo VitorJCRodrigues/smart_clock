@@ -13,8 +13,12 @@
  *********************************/ 
 
 // Function to send RGB data to the LED matrix with brightness control
-void send_led_data(const Led_Image *led_image, float brightness);
+void pixel_leds_send_data(const Led_Image *led_image, float brightness);
 
-void turn_off_leds();
+void pixel_leds_turn_off();
+
+Led_Image* pixel_leds_init();
+
+Led_Image* pixel_leds_art_select(icons selector);
 
 #endif //PIXEL_LEDS_H

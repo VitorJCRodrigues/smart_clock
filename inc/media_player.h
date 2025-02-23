@@ -10,6 +10,13 @@
 #include <hardware/clocks.h>
 #include <hardware/timer.h>
 
+typedef enum {
+    PACMAN,
+    NOKIA,
+    TETRIS,
+    MELO_QTT
+} melos;
+
 // Internal Auxiliary Functions
 static double midiNoteToFrequency(int note); // Convert MIDI values for notes in to frequencies in Hertz (Hz)
 
@@ -42,5 +49,11 @@ bool bazz_player_is_melody_playing();
 
 // Notes handler for melody playback
 int64_t bazz_player_play_next_note(alarm_id_t id, void *user_data);
+
+Melody* bazz_player_melody_select(melos selector);
+
+Melody* melody_init();
+
+
 
 #endif //MEDIA_PLAYER_H

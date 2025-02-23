@@ -61,31 +61,28 @@ void display_render_text(char output[][20])
     render(display_buffer, &frame_area);
 }
 
-void display_render_datetime(datetime_t datetime, char* alarmLine)
+void display_render_datetime(datetime_t datetime, const char* extraLine1, const char* extraLine2)
 {
     int y = 0;
     char text_to_render[4][20];
-    char *alarm = alarmLine;
-    sprintf(text_to_render[0], "%02d-%02d-%04d", datetime.day, datetime.month, (datetime.year));
-    sprintf(text_to_render[1], "%02d:%02d:%02d", datetime.hour, datetime.min, datetime.sec);
+    char dotw[4];
 
-    sprintf(text_to_render[3], alarm);
-
-    if (datetime.dotw== 0){
-        strcpy(text_to_render[2], "Sunday");
-    } else if (datetime.dotw== 1){
-        strcpy(text_to_render[2], "Monday");
-    } else if (datetime.dotw== 2){
-        strcpy(text_to_render[2], "Tuesday");
-    } else if (datetime.dotw== 3){
-        strcpy(text_to_render[2], "Wednesday");
-    } else if (datetime.dotw== 4){
-        strcpy(text_to_render[2], "Thursday");
-    } else if (datetime.dotw== 5){
-        strcpy(text_to_render[2], "Friday");
-    } else if (datetime.dotw== 6){
-        strcpy(text_to_render[2], "Saturday");
+    switch(datetime.dotw)
+    {
+        case 0:  sprintf(dotw, "Sun"); break;
+        case 1:  sprintf(dotw, "Mon"); break;
+        case 2:  sprintf(dotw, "Tue"); break;
+        case 3:  sprintf(dotw, "Wed"); break;
+        case 4:  sprintf(dotw, "Thu"); break;
+        case 5:  sprintf(dotw, "Fri"); break;
+        case 6:  sprintf(dotw, "Sat"); break;
+        default: sprintf(dotw, "");   break;
     }
+    
+    sprintf(text_to_render[0], "%02d-%02d-%04d", datetime.day, datetime.month, (datetime.year));
+    sprintf(text_to_render[1], "%02d:%02d:%02d   %s", datetime.hour, datetime.min, datetime.sec, dotw);
+    snprintf(text_to_render[2], sizeof(text_to_render[2]), "%s", extraLine1);
+    snprintf(text_to_render[3], sizeof(text_to_render[3]), "%s", extraLine2);
 
     display_render_text(text_to_render);
 }

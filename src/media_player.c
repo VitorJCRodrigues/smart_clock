@@ -7,6 +7,7 @@
 #include <pico/stdlib.h>
 #include <hardware/timer.h>
 #include "media_player.h"
+#include "midis/melodies.h"
 
 static Melody current_melody;
 static int current_note_index = 0;
@@ -117,7 +118,6 @@ void bazz_player_stop_melody() {
 }
 
 int64_t bazz_player_play_next_note(alarm_id_t id, void *user_data) {
-    printf("Playing note %d/%d\n", current_note_index, current_melody.length);
     if (!is_playing || current_note_index >= current_melody.length) {
         printf("Melody finished or stopped.\n");
         is_playing = false;
@@ -137,7 +137,7 @@ int64_t bazz_player_play_next_note(alarm_id_t id, void *user_data) {
     if (duration < 10) {  // Ensure a minimum delay of 10ms
         duration = 10;
     }
-    printf("Note %d: Frequency = %d, Duration = %.2f ms\n", current_note_index, current_melody.notes[current_note_index], duration);
+    //printf("Note %d/%d: Frequency = %d, Duration = %.2f ms\n", current_note_index, current_melody.length, current_melody.notes[current_note_index], duration);
     bazz_player_play_tone(current_gpio_pin, current_melody.notes[current_note_index]);
     current_note_index++;
 
@@ -166,4 +166,22 @@ int64_t bazz_player_play_next_note(alarm_id_t id, void *user_data) {
 
 bool bazz_player_is_melody_playing() {
     return is_playing;
+}
+
+Melody* bazz_player_melody_select(melos selector)
+{
+    switch (selector)
+    {
+        case PACMAN: return &pacman;
+        case NOKIA:  return &nokia;
+        case TETRIS: return &tetris;
+        default:
+            return NULL;  // Return NULL for invalid selections
+    }
+}
+
+
+Melody* melody_init()
+{
+    return &nokia;
 }

@@ -13,4 +13,17 @@ typedef struct {
     uint8_t blue[NUM_LEDS];
 } Led_Image;
 
+typedef enum {
+    CAT,
+    DOG2,
+    DROP,
+    HEART,
+    PILL,
+    CROSS,
+    SUN,
+    STAR,
+    MOON,
+    ICONS_QTT
+} icons;
+
 #endif // RGB_IMG_H

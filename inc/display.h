@@ -35,6 +35,6 @@ void display_play_transition(render_area *area);
 void display_render_text(char output[][20]);
 
 // Renders a datetime info on a texbox
-void display_render_datetime(datetime_t datetime, char* alarmLine);
+void display_render_datetime(datetime_t datetime, const char* extraLine1, const char* extraLine2);
 
 #endif //DISPLAY_H

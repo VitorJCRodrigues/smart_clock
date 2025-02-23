@@ -76,17 +76,4 @@ Led_Image dog2 = {
     .blue = {0, 39, 39, 39, 0, 39, 39, 0, 39, 39, 39, 0, 176, 0, 39, 39, 39, 176, 39, 39, 84, 39, 0, 39, 84}
 };
 
-typedef enum {
-    CAT,
-    DOG2,
-    DROP,
-    HEART,
-    PILL,
-    CROSS,
-    SUN,
-    STAR,
-    MOON,
-    ICONS_QTT
-} icons;
-
 #endif //ICONS_H

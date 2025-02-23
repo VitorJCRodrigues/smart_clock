@@ -4,10 +4,12 @@
 
 #include "pixel_leds.h"
 #include "bitdoglab.h"
+#include <stdio.h>
 #include <stdint.h>
 #include "ws2812.pio.h"
+#include "imgs/icons.h"
 
-void send_led_data(const Led_Image *led_image, float brightness) {
+void pixel_leds_send_data(const Led_Image *led_image, float brightness) {
     // Clamp brightness to the range [0, 1]
     if (brightness < 0) brightness = 0;
     if (brightness > 1) brightness = 1;
@@ -32,7 +34,7 @@ void send_led_data(const Led_Image *led_image, float brightness) {
     }
 }
 
-void turn_off_leds() {
+void pixel_leds_turn_off() {
     // Initialize the PIO and WS2812 program
     PIO pio = pio0;
     int sm = 0;
@@ -44,5 +46,28 @@ void turn_off_leds() {
     // Send 0x000000 (off) to all LEDs
     for (int i = 0; i < NUM_LEDS; i++) {
         pio_sm_put_blocking(pio, sm, 0x000000);
+    }
+}
+
+Led_Image* pixel_leds_init()
+{
+    return &test;
+}
+
+Led_Image* pixel_leds_art_select(icons selector)
+{
+    switch (selector)
+    {
+        case CAT:   return &cat;
+        case DOG2:  return &dog2;
+        case DROP:  return &drop;
+        case HEART: return &heart;
+        case PILL:  return &pill;
+        case CROSS: return &cross;
+        case SUN:   return &sun;
+        case STAR:  return &star;
+        case MOON:  return &moon;
+        default:
+            return NULL;  // Return NULL for invalid selections
     }
 }

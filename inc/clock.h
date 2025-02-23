@@ -23,6 +23,8 @@ typedef enum {
     HOUR,
     MIN,
     SEC,
+    IMG,
+    MELO,
     DONE
 } CLOCK_ST;
 
