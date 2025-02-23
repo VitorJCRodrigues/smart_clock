@@ -52,6 +52,7 @@ add_executable(smart_clock
             ${SOURCE_DIR}/clock.c
             ${SOURCE_DIR}/display.c 
             ${SOURCE_DIR}/media_player.c
+            ${SOURCE_DIR}/pixel_leds.c
             ${SOURCE_DIR}/rtc.c 
             ${SSD1306_DIR}/ssd1306.c
 #            ${WS2812_DIR}/ws2812.c        ## Do not unconmment   

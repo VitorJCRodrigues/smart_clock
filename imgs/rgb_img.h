@@ -3,6 +3,8 @@
 #ifndef RGB_IMG_H
 #define RGB_IMG_H
 
+#include <stdint.h>
+
 #define NUM_LEDS 25
 
 typedef struct {
