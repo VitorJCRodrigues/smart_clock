@@ -169,3 +169,13 @@ char* datetime_to_string(datetime_t dt)
                                                     dt.hour, dt.min, dt.sec);
     return output;
 }
+
+void rtc_connect()
+{
+    uint8_t start_addr = 0x00;
+    while(!i2c_write_blocking(BITDOG_RTC_PORT, BITDOG_RTC_ADDR, &start_addr, 1, true))
+    {
+        printf("Erro ao indicar registrador inicial.\n");
+        sleep_ms(50);
+    }
+}

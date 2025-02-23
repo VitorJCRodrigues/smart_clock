@@ -8,7 +8,6 @@
 
 #include <hardware/gpio.h>
 #include <hardware/pio.h>
-#include <hardware/spi.h>
 #include <hardware/i2c.h>
 #include <hardware/timer.h>
 #include <hardware/uart.h>
@@ -46,8 +45,9 @@ bool freezeDisplay   = false;
 int clock_setting = 0;
 int alarm_setting = 0;
 
-// Pin configuration
-#define DEBOUNCE_DELAY_MS 10   // Debounce delay
+int led_images_counter = 0;
+
+#define HOLD_TIME_MS 3000      // Time to hold
 
 bool hasAlarmSet = false;
 char alarmLine[] = "";
@@ -78,7 +78,6 @@ Button btn_b = {
     .state = IDLE, .press_time = 0, .isDone = false,
 };
 
-uint8_t scroll_state;
 datetime_t current_datetime;
 
 // Joystick thresholds for movement detection
@@ -497,7 +496,7 @@ bool led_timer_callback(struct repeating_timer *t) {
         default:
             break;
         }
-        printf("led_images_counter: %d\n", led_images_counter);
+        
         if(!isLedImgOn) led_images_counter++;
     }
     else
@@ -521,7 +520,7 @@ bool buzzer_timer_callback(struct repeating_timer *t) {
 }
 
 bool invert_display_timer_callback(struct repeating_timer *t) {
-    if(!freezeDisplay)
+    if(triggerAlarm)
     {
         if(isDispInverted){
             SSD1306_send_cmd(SSD1306_SET_NORM_DISP);
@@ -537,21 +536,6 @@ bool update_display_timer_callback(struct repeating_timer *t) {
     {
         rtc_read_datetime(&current_datetime);
         display_render_datetime(current_datetime, alarmLine);
-    }
-}
-
-bool scroll_display_timer_callback(struct repeating_timer *t) {
-    if(!freezeDisplay)
-    {
-        if(scroll_state == 1){
-            SSD1306_scroll(true);
-        } else if(scroll_state == 2){
-            SSD1306_scroll(false);
-        } else{
-            scroll_state = 0;
-        }
-
-        scroll_state++;
     }
 }
 
@@ -586,7 +570,7 @@ int main()
     gpio_set_function(9, GPIO_FUNC_UART);
     
     struct repeating_timer timer_leds, timer_buzzers, 
-                            timer_disp_inv, timer_disp_update, timer_disp_scroll,
+                            timer_disp_inv, timer_disp_update,
                             timer_check_alarm;
 
     
@@ -601,6 +585,9 @@ int main()
 
     // Run through the complete SSD1306 initialization process
     SSD1306_init();
+
+    // Initialize RTC
+    rtc_connect();   
 
     // Initialize GPIO for buzzer
     gpio_init(BITDOG_BZZ_A);
@@ -632,7 +619,7 @@ int main()
 
     Led_Image img = dog2;
     Melody alarmTune = nokia;
-    //Midi alarmTune = never_gonna_give_you_up;
+    //Midi alarmTune = alex_underwater;
     
     uint32_t wait = 10000;
     for (int i = 0; i < alarmTune.length; i++)
@@ -644,29 +631,9 @@ int main()
     add_repeating_timer_ms(wait, buzzer_timer_callback, NULL, &timer_buzzers);
     add_repeating_timer_ms(2000, invert_display_timer_callback, NULL, &timer_disp_inv);
     add_repeating_timer_ms(1000, update_display_timer_callback, NULL, &timer_disp_update);
-    //add_repeating_timer_ms(1500, scroll_display_timer_callback, NULL, &timer_disp_scroll);
     add_repeating_timer_ms(1000, check_alarm_timer_callback, NULL, &timer_check_alarm);
 
     if(triggerAlarm) playAlarm = true; // Immediatly triggers the melody the first time if alarm is already triggering.
-
-    scroll_state = 0;
-
-    uint8_t start_addr = 0x00;
-    while(!i2c_write_blocking(BITDOG_RTC_PORT, BITDOG_RTC_ADDR, &start_addr, 1, true))
-    {
-        printf("Erro ao indicar registrador inicial.\n");
-        sleep_ms(50);
-    }
-
-    bool date_set = true;//false;
-    while(!date_set)
-    {
-        if(!rtc_write_datetime(hora, data)){
-            printf("ERRO: Nao foi possivel definir datetime!\n");
-        } else {
-            date_set = true;
-        } 
-    }
 
     while(true)
     {
@@ -686,16 +653,18 @@ int main()
             //play_midi(BITDOG_BZZ_B, alarmTune);
             bazz_player_stop_tone(BITDOG_BZZ_B);
             gpio_set_function(BITDOG_BZZ_B, GPIO_FUNC_NULL);
-            isBuzzerPlaying = false;
-            char alarmText[4][20] = {"ALARM!", " ALARM!", "  ALARM!", "ALARM!"};
+            freezeDisplay = true;
+            char alarmText[4][20] = {"      ALARM!", "         ALARM!", "    ALARM!", "ALARM!"};
             display_render_text(alarmText);
+            isBuzzerPlaying = false;
         }
 
         // Check if both buttons are pressed simultaneously
         if (gpio_get(BITDOG_BTN_A) == 0 && gpio_get(BITDOG_BTN_B) == 0 && triggerAlarm == true) {
-            sleep_ms(50); // Small delay to debounce buttons
             triggerAlarm = false; // Disable the alarm
             printf("Buttons pressed: Alarm disabled.\n");
+            bazz_player_beep(BITDOG_BTN_B, NOTE_B4, 100);
+            bazz_player_beep(BITDOG_BTN_B, NOTE_A4, 100);
         }
     }
 

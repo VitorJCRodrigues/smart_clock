@@ -40,4 +40,6 @@ bool isAlarmValid(datetime_t alarm_datetime, datetime_t current_datetime);
 
 char* datetime_to_string(datetime_t dt);
 
+void rtc_connect();
+
 #endif //RTC_H
