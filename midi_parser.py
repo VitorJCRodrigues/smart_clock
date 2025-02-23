@@ -250,7 +250,7 @@ def parse_midi(midi_path, output_path):
                         active_notes.remove(note_data)
                         break
 
-    max_length = min(len(notes), 4096)
+    max_length = min(len(notes), 512)
     notes = freqs_to_notes(notes[:max_length] + [0] * max_length)[:max_length]
     durations = (durations[:max_length] + [0] * max_length)[:max_length]
     length = max_length

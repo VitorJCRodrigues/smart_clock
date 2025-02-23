@@ -492,31 +492,28 @@ int main()
     while(true)
     {   
         // Handle alarm logic
-        if(isBuzzerPlaying == false && triggerAlarm == true && playAlarm == true)
+        if(!is_melody_playing() && triggerAlarm && playAlarm)
         {
-            isBuzzerPlaying = true;
             playAlarm = false;
-            bazz_player_init(BITDOG_BZZ_B);
+            printf("Starting alarm melody\n");
             bazz_player_play_melody(BITDOG_BZZ_B, alarmTune);
             //play_midi(BITDOG_BZZ_B, alarmTune);
-            bazz_player_stop_tone(BITDOG_BZZ_B);
-            gpio_set_function(BITDOG_BZZ_B, GPIO_FUNC_NULL);
             freezeDisplay = true;
             char alarmText[4][20] = {"      ALARM!", "         ALARM!", "    ALARM!", "ALARM!"};
             display_render_text(alarmText);
-            isBuzzerPlaying = false;
-        } 
-        else // Handle detection for Command A (Hold button A) and Command B (Hold Button B)
-        {    // Ignore command detection when Alarm event is running
-            is_button_a_held(HOLD_TIME_MS);
-            is_button_b_held(HOLD_TIME_MS);
         }
+
+        // Handle detection for Command A (Hold button A) and Command B (Hold Button B)
+        is_button_a_held(HOLD_TIME_MS);
+        is_button_b_held(HOLD_TIME_MS);
+        
 
         // Check if both buttons are pressed simultaneously
         if (gpio_get(BITDOG_BTN_A) == 0 && gpio_get(BITDOG_BTN_B) == 0 && triggerAlarm == true) {
             triggerAlarm = false; // Disable the alarm
             freezeDisplay = false;
             printf("Buttons pressed: Alarm disabled.\n");
+            bazz_player_stop_melody();
         }
     }
 
