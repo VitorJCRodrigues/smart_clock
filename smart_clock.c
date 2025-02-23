@@ -85,11 +85,11 @@ void handle_datetime_setting() {
             printf("Button pressed\n");
             if (gpio_get(BITDOG_JOY_SW) == 0) {
                 clock_setting++;
-                if(clock_setting>6){
+                if(clock_setting == DONE){
                     printf("Setting datetime... [%s] --- > [%s]\n", datetime_to_string(current_datetime), datetime_to_string(new_datetime));
                     current_datetime = new_datetime;
                     rtc_write_datetime(new_datetime);
-                    clock_setting = 0;
+                    clock_setting = OFF;
                     freezeDisplay = false;
                     break;
                 }
@@ -97,18 +97,16 @@ void handle_datetime_setting() {
             sleep_ms(200);
         }
 
-        if (clock_setting == DAY){
-            number = new_datetime.day;
-        } else if (clock_setting == MONTH){
-            number = new_datetime.month;
-        } else if (clock_setting == YEAR){
-            number = new_datetime.year;
-        } else if (clock_setting == HOUR){
-            number = new_datetime.hour;
-        } else if (clock_setting == MIN){
-            number = new_datetime.min;
-        } else if (clock_setting == SEC){
-            number = new_datetime.sec;
+        switch (clock_setting)
+        {
+        case DAY:   number = new_datetime.day; break;
+        case MONTH: number = new_datetime.month; break;
+        case YEAR:  number = new_datetime.year; break;
+        case HOUR:  number = new_datetime.hour; break;
+        case MIN:   number = new_datetime.min; break;
+        case SEC:   number = new_datetime.sec; break;
+        default:
+            break;
         }
         
         // Handle left movement
@@ -181,8 +179,8 @@ void handle_alarm_setting() {
             printf("Button pressed\n");
             if (gpio_get(BITDOG_JOY_SW) == 0) {
                 alarm_setting++;
-                if(alarm_setting>6){
-                    alarm_setting = 0;
+                if(alarm_setting == DONE){
+                    alarm_setting = OFF;
                     if(isAlarmValid(new_datetime, current_datetime))
                     {
                         alarm_time = new_datetime;
@@ -200,18 +198,16 @@ void handle_alarm_setting() {
             sleep_ms(200);
         }
 
-        if (alarm_setting == DAY){
-            number = new_datetime.day;
-        } else if (alarm_setting == MONTH){
-            number = new_datetime.month;
-        } else if (alarm_setting == YEAR){
-            number = new_datetime.year;
-        } else if (alarm_setting == HOUR){
-            number = new_datetime.hour;
-        } else if (alarm_setting == MIN){
-            number = new_datetime.min;
-        } else if (alarm_setting == SEC){
-            number = new_datetime.sec;
+        switch (alarm_setting)
+        {
+        case DAY:   number = new_datetime.day; break;
+        case MONTH: number = new_datetime.month; break;
+        case YEAR:  number = new_datetime.year; break;
+        case HOUR:  number = new_datetime.hour; break;
+        case MIN:   number = new_datetime.min; break;
+        case SEC:   number = new_datetime.sec; break;
+        default:
+            break;
         }
         
         // Handle left movement
@@ -335,13 +331,6 @@ void config_i2c_port(i2c_inst_t * i2cport, int i2c_clock, uint8_t sdapin, uint8_
     gpio_pull_up(sclpin);
 }
 
-char text[4][20] = {
-    "",
-    "",
-    "",
-    ""
-};
-
 void display_init()
 {
     calc_render_area_buflen(&frame_area);
@@ -364,35 +353,17 @@ bool led_timer_callback(struct repeating_timer *t) {
         if(led_images_counter == ICONS_QTT) led_images_counter = 0;
         switch (led_images_counter)
         {
-        case CAT:
-            img = &cat;
-            break;
-        case DOG2:
-            img = &dog2;
-            break;
-        case DROP:
-            img = &drop;
-            break;
-        case HEART:
-            img = &heart;
-            break;
-        case PILL:
-            img = &pill;
-            break;
-        case CROSS:
-            img = &cross;
-            break;
-        case SUN:
-            img = &sun;
-            break;
-        case STAR:
-            img = &star;
-            break;
-        case MOON:
-            img = &moon;
-            break;
-        default:
-            break;
+            case CAT:   img = &cat;   break;
+            case DOG2:  img = &dog2;  break;
+            case DROP:  img = &drop;  break;
+            case HEART: img = &heart; break;
+            case PILL:  img = &pill;  break;
+            case CROSS: img = &cross; break;
+            case SUN:   img = &sun;   break;
+            case STAR:  img = &star;  break;
+            case MOON:  img = &moon;  break;
+            default:
+                break;
         }
         
         if(!isLedImgOn) led_images_counter++;

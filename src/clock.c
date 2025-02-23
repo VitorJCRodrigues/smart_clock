@@ -12,17 +12,6 @@
 #include <hardware/gpio.h>
 #include <pico/stdlib.h>
 
-/*Button btn_a = {
-    .state = IDLE, .press_time = 0, .isDone = false,
-};
-
-Button btn_b = {
-    .state = IDLE, .press_time = 0, .isDone = false,
-};
-
-//uint8_t clock_setting = OFF;
-//uint8_t alarm_setting = OFF;*/
-
 bool clock_read_joystick(Joystick *handler)
 {
     if(handler == NULL) return false;

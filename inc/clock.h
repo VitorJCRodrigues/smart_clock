@@ -22,7 +22,8 @@ typedef enum {
     YEAR,
     HOUR,
     MIN,
-    SEC
+    SEC,
+    DONE
 } CLOCK_ST;
 
 // State machine states for the Buttons
@@ -45,7 +46,7 @@ typedef struct {
 #define JOY_THRESHOLD_HIGH 70
 
 // Button debounce delay
-#define DEBOUNCE_DELAY_MS 100   
+#define DEBOUNCE_DELAY_MS 200   
 
 bool clock_read_joystick(Joystick *handler);
 
