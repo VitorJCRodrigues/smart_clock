@@ -49,6 +49,7 @@ set(SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 # Add executable. Default name is the project name, version 0.1
 add_executable(smart_clock 
             smart_clock.c
+            ${SOURCE_DIR}/clock.c
             ${SOURCE_DIR}/display.c 
             ${SOURCE_DIR}/media_player.c
             ${SOURCE_DIR}/rtc.c 

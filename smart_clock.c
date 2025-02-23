@@ -11,7 +11,6 @@
 #include <hardware/i2c.h>
 #include <hardware/timer.h>
 #include <hardware/uart.h>
-#include <hardware/adc.h>
 #include <hardware/rtc.h>
 
 #include <pico/stdlib.h>
@@ -20,6 +19,7 @@
 #include "ws2812.pio.h"
 
 #include "bitdoglab.h"
+#include "clock.h"
 #include "display.h"
 #include "media_player.h"
 #include "rtc.h"
@@ -32,12 +32,10 @@
 //#include "midis/cantode.h"
 //#include "midis/creep.h"
 
-#define HOLD_TIME_MS 2000      // Time to hold (2 seconds)
-
 // Global Flags
 bool isLedImgOn      = false;
 bool isBuzzerPlaying = false;
-bool triggerAlarm    = false;//true;
+bool triggerAlarm    = true;
 bool playAlarm       = false;
 bool isDispInverted  = false;
 bool freezeDisplay   = false;
@@ -57,19 +55,6 @@ datetime_t alarm_time = {
     .dotw=0
     };
 
-// State machine states
-typedef enum {
-    IDLE,
-    PRESSED,
-    HELD
-} ButtonState;
-
-typedef struct {
-    ButtonState state;
-    uint32_t press_time;
-    bool isDone;
-} Button;
-
 Button btn_a = {
     .state = IDLE, .press_time = 0, .isDone = false,
 };
@@ -80,10 +65,6 @@ Button btn_b = {
 
 datetime_t current_datetime;
 
-// Joystick thresholds for movement detection
-#define JOY_THRESHOLD_LOW  30
-#define JOY_THRESHOLD_HIGH 70
-
 // Function to handle changing the clock setting
 void handle_datetime_setting() {
     printf("Setting Clock...\n");
@@ -91,24 +72,18 @@ void handle_datetime_setting() {
     int number = 0;
     bool joystick_left = false;
     bool joystick_right = false;
-    bool button_pressed = false;
     absolute_time_t last_move_time = get_absolute_time();
     datetime_t new_datetime = current_datetime;
+    Joystick joy_hdl;
     
     while (1) {
-        // Read joystick
-        adc_select_input(1);  // ADC0 (Vrx)
-        uint16_t vrx_value = adc_read();
-        adc_select_input(0);  // ADC1 (Vry)
-        uint16_t vry_value = adc_read();
-        bool sw_pressed = gpio_get(BITDOG_JOY_SW) == 0;
-        
-        // Scale the values to 0 - 100
-        int vrx_percent = (vrx_value * 100) / 4095;
-        int vry_percent = (vry_value * 100) / 4095;
+        if(!clock_read_joystick(&joy_hdl))
+        {
+            printf("Failed to read joystick data.\n");
+        }
 
         // Check if button is pressed
-        if (sw_pressed) {
+        if (joy_hdl.sw_pressed) {
             printf("Button pressed\n");
             if (gpio_get(BITDOG_JOY_SW) == 0) {
                 clock_setting++;
@@ -124,58 +99,58 @@ void handle_datetime_setting() {
             sleep_ms(200);
         }
 
-        if (clock_setting==1){
+        if (clock_setting == DAY){
             number = new_datetime.day;
-        } else if (clock_setting==2){
+        } else if (clock_setting == MONTH){
             number = new_datetime.month;
-        } else if (clock_setting==3){
+        } else if (clock_setting == YEAR){
             number = new_datetime.year;
-        } else if (clock_setting==4){
+        } else if (clock_setting == HOUR){
             number = new_datetime.hour;
-        } else if (clock_setting==5){
+        } else if (clock_setting == MIN){
             number = new_datetime.min;
-        } else if (clock_setting==6){
+        } else if (clock_setting == SEC){
             number = new_datetime.sec;
         }
         
         // Handle left movement
-        if (vrx_percent < JOY_THRESHOLD_LOW && !joystick_left) {
+        if (joy_hdl.vrx_percent < JOY_THRESHOLD_LOW && !joystick_left) {
             joystick_left = true;
             number--;
-        } else if (vrx_percent >= JOY_THRESHOLD_LOW) {
+        } else if (joy_hdl.vrx_percent >= JOY_THRESHOLD_LOW) {
             joystick_left = false;
         }
 
         // Handle right movement
-        if (vrx_percent > JOY_THRESHOLD_HIGH && !joystick_right) {
+        if (joy_hdl.vrx_percent > JOY_THRESHOLD_HIGH && !joystick_right) {
             joystick_right = true;
             number++;
-        } else if (vrx_percent <= JOY_THRESHOLD_HIGH) {
+        } else if (joy_hdl.vrx_percent <= JOY_THRESHOLD_HIGH) {
             joystick_right = false;
         }
 
-        if (clock_setting==1){
+        if (clock_setting == DAY){
             if (number > 31) number = 1;
             if (number < 1)  number = 31;
             new_datetime.day = number;
             new_datetime.dotw = (int8_t)calculate_new_dotw(new_datetime);
-        } else if (clock_setting==2){
+        } else if (clock_setting == MONTH){
             if (number > 12) number = 1;
             if (number < 1)  number = 12;
             new_datetime.month = number;
-        } else if (clock_setting==3){
+        } else if (clock_setting == YEAR){
             if (number > 9999) number = 1;
             if (number < 1)  number = 9999;
             new_datetime.year = number;
-        } else if (clock_setting==4){
+        } else if (clock_setting == HOUR){
             if (number > 23) number = 0;
             if (number < 0)  number = 23;
             new_datetime.hour = number;
-        } else if (clock_setting==5){
+        } else if (clock_setting == MIN){
             if (number > 59) number = 0;
             if (number < 0)  number = 59;
             new_datetime.min = number;
-        } else if (clock_setting==6){
+        } else if (clock_setting == SEC){
             if (number > 59) number = 0;
             if (number < 0)  number = 59;
             new_datetime.sec = number;
@@ -193,23 +168,18 @@ void handle_alarm_setting() {
     int number = 0;
     bool joystick_left = false;
     bool joystick_right = false;
-    bool button_pressed = false;
     absolute_time_t last_move_time = get_absolute_time();
     datetime_t new_datetime = current_datetime;
+    Joystick joy_hdl;
     
     while (1) {
-        adc_select_input(1);  // ADC0 (Vrx)
-        uint16_t vrx_value = adc_read();
-        adc_select_input(0);  // ADC1 (Vry)
-        uint16_t vry_value = adc_read();
-        bool sw_pressed = gpio_get(BITDOG_JOY_SW) == 0;
-        
-        // Scale the values to 0 - 100
-        int vrx_percent = (vrx_value * 100) / 4095;
-        int vry_percent = (vry_value * 100) / 4095;
+        if(!clock_read_joystick(&joy_hdl))
+        {
+            printf("Failed to read joystick data.\n");
+        }
 
         // Check if button is pressed
-        if (sw_pressed) {
+        if (joy_hdl.sw_pressed) {
             printf("Button pressed\n");
             if (gpio_get(BITDOG_JOY_SW) == 0) {
                 alarm_setting++;
@@ -232,58 +202,58 @@ void handle_alarm_setting() {
             sleep_ms(200);
         }
 
-        if (alarm_setting==1){
+        if (alarm_setting == DAY){
             number = new_datetime.day;
-        } else if (alarm_setting==2){
+        } else if (alarm_setting == MONTH){
             number = new_datetime.month;
-        } else if (alarm_setting==3){
+        } else if (alarm_setting == YEAR){
             number = new_datetime.year;
-        } else if (alarm_setting==4){
+        } else if (alarm_setting == HOUR){
             number = new_datetime.hour;
-        } else if (alarm_setting==5){
+        } else if (alarm_setting == MIN){
             number = new_datetime.min;
-        } else if (alarm_setting==6){
+        } else if (alarm_setting == SEC){
             number = new_datetime.sec;
         }
         
         // Handle left movement
-        if (vrx_percent < JOY_THRESHOLD_LOW && !joystick_left) {
+        if (joy_hdl.vrx_percent < JOY_THRESHOLD_LOW && !joystick_left) {
             joystick_left = true;
             number--;
-        } else if (vrx_percent >= JOY_THRESHOLD_LOW) {
+        } else if (joy_hdl.vrx_percent >= JOY_THRESHOLD_LOW) {
             joystick_left = false;
         }
 
         // Handle right movement
-        if (vrx_percent > JOY_THRESHOLD_HIGH && !joystick_right) {
+        if (joy_hdl.vrx_percent > JOY_THRESHOLD_HIGH && !joystick_right) {
             joystick_right = true;
             number++;
-        } else if (vrx_percent <= JOY_THRESHOLD_HIGH) {
+        } else if (joy_hdl.vrx_percent <= JOY_THRESHOLD_HIGH) {
             joystick_right = false;
         }
 
-        if (alarm_setting==1){
+        if (alarm_setting == DAY){
             if (number > 31) number = 1;
             if (number < 1)  number = 31;
             new_datetime.day = number;
             new_datetime.dotw = (int8_t)calculate_new_dotw(new_datetime);
-        } else if (alarm_setting==2){
+        } else if (alarm_setting == MONTH){
             if (number > 12) number = 1;
             if (number < 1)  number = 12;
             new_datetime.month = number;
-        } else if (alarm_setting==3){
+        } else if (alarm_setting == YEAR){
             if (number > 9999) number = 1;
             if (number < 1)  number = 9999;
             new_datetime.year = number;
-        } else if (alarm_setting==4){
+        } else if (alarm_setting == HOUR){
             if (number > 23) number = 0;
             if (number < 0)  number = 23;
             new_datetime.hour = number;
-        } else if (alarm_setting==5){
+        } else if (alarm_setting == MIN){
             if (number > 59) number = 0;
             if (number < 0)  number = 59;
             new_datetime.min = number;
-        } else if (alarm_setting==6){
+        } else if (alarm_setting == SEC){
             if (number > 59) number = 0;
             if (number < 0)  number = 59;
             new_datetime.sec = number;
@@ -338,21 +308,21 @@ bool check_button(uint button_pin, uint hold_time, Button *btn_hdl) {
     return ret;
 }
 
-void is_button_a_held()
+void is_button_a_held(uint32_t hold_time_ms)
 {
-    if(check_button(BITDOG_BTN_A, HOLD_TIME_MS, &btn_a)){
+    if(check_button(BITDOG_BTN_A, hold_time_ms, &btn_a)){
         sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
-        printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
+        printf("Button held for %d seconds!\n", hold_time_ms/1000);
         alarm_setting = 1;
         handle_alarm_setting();
     }
 }
 
-void is_button_b_held()
+void is_button_b_held(uint32_t hold_time_ms)
 {
-    if(check_button(BITDOG_BTN_B, HOLD_TIME_MS, &btn_b)){
+    if(check_button(BITDOG_BTN_B, hold_time_ms, &btn_b)){
         sleep_ms(DEBOUNCE_DELAY_MS);  // Non-blocking debounce delay
-        printf("Button held for %d seconds!\n", HOLD_TIME_MS/1000);
+        printf("Button held for %d seconds!\n", hold_time_ms/1000);
         clock_setting = 1;
         handle_datetime_setting();
     }
@@ -429,31 +399,6 @@ void turn_off_leds() {
     for (int i = 0; i < NUM_LEDS; i++) {
         pio_sm_put_blocking(pio, sm, 0x000000);
     }
-}
-
-/*******************************
- * Joystick Handling Functions *
- * *************************/ 
-// Function to read and print joystick values
-void read_joystick() {
-    // Read ADC values for Vrx and Vry
-    adc_select_input(0);  // ADC0 (GPIO 26 for Vrx)
-    uint16_t vrx_value = adc_read();
-    adc_select_input(1);  // ADC1 (GPIO 27 for Vry)
-    uint16_t vry_value = adc_read();
-
-    // Scale the values to 0 - 100
-    int vrx_percent = (vrx_value * 100) / 4095;
-    int vry_percent = (vry_value * 100) / 4095;
-
-    // Read button state (active low)
-    bool sw_pressed = gpio_get(BITDOG_JOY_SW) == 0;
-
-    // Print values
-    printf("Vrx: %d%%, Vry: %d%%, SW: %s\n", 
-            vrx_percent, 
-            vry_percent, 
-            sw_pressed ? "Pressed" : "Released");
 }
 
 /*******************
@@ -596,26 +541,11 @@ int main()
     gpio_set_dir(BITDOG_BZZ_B, GPIO_OUT);
 
     // Initialize GPIO for buttons
-    gpio_init(BITDOG_BTN_A);
-    gpio_init(BITDOG_BTN_B);
-    gpio_set_dir(BITDOG_BTN_A, GPIO_IN);
-    gpio_set_dir(BITDOG_BTN_B, GPIO_IN);
-    gpio_pull_up(BITDOG_BTN_A); // Enable internal pull-up resistor
-    gpio_pull_up(BITDOG_BTN_B); // Enable internal pull-up resistor
+    clock_init_button(BITDOG_BTN_A);
+    clock_init_button(BITDOG_BTN_B);
 
-    // Initializes Joystick
-    adc_init();
-    adc_gpio_init(BITDOG_JOY_VRX);
-    adc_gpio_init(BITDOG_JOY_VRY);
-    gpio_init(BITDOG_JOY_SW);
-    gpio_set_dir(BITDOG_JOY_SW, GPIO_IN);
-    gpio_pull_up(BITDOG_JOY_SW);
-
-    uint8_t test_byte = 0;
-    if (!i2c_write_blocking(BITDOG_RTC_PORT, BITDOG_RTC_ADDR, &test_byte, 1, false)) {
-        printf("RTC Not Working");
-        return 1;
-    }
+    // Initialize Joystick
+    clock_init_joystick(BITDOG_JOY_VRX, BITDOG_JOY_VRY, BITDOG_JOY_SW);
 
     Led_Image img = dog2;
     Melody alarmTune = nokia;
@@ -640,8 +570,8 @@ int main()
         // Handle detection for Command A (Hold button A) and Command B (Hold Button B)
         if(!triggerAlarm) // Ignore command detection when Alarm event is running
         {
-            is_button_a_held();
-            is_button_b_held();
+            is_button_a_held(HOLD_TIME_MS);
+            is_button_b_held(HOLD_TIME_MS);
         }
         
         // Handle alarm logic
