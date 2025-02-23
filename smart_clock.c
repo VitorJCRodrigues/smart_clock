@@ -411,8 +411,9 @@ void send_led_data(const Led_Image *led_image, float brightness) {
         uint8_t g = (uint8_t)(led_image->green[i] * brightness);
         uint8_t b = (uint8_t)(led_image->blue[i] * brightness);
 
-        uint32_t rgb = ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
-        pio_sm_put_blocking(pio, sm, rgb);
+        // GRB is the correct order as per indicated in the WS2812 datasheet
+        uint32_t pixel_grb = ((uint32_t)r << 8) | ((uint32_t)g << 16) | (uint32_t)b;
+        pio_sm_put_blocking(pio, sm, pixel_grb << 8u);
     }
 }
 
@@ -460,7 +461,50 @@ void read_joystick() {
  * Timer Callbacks *
  *******************/ 
 bool led_timer_callback(struct repeating_timer *t) {
-    Led_Image *img = (Led_Image *)t->user_data; 
+    Led_Image *img;
+    if (t->user_data == NULL)
+    {
+        if(led_images_counter == ICONS_QTT) led_images_counter = 0;
+        switch (led_images_counter)
+        {
+        case CAT:
+            img = &cat;
+            break;
+        case DOG2:
+            img = &dog2;
+            break;
+        case DROP:
+            img = &drop;
+            break;
+        case HEART:
+            img = &heart;
+            break;
+        case PILL:
+            img = &pill;
+            break;
+        case CROSS:
+            img = &cross;
+            break;
+        case SUN:
+            img = &sun;
+            break;
+        case STAR:
+            img = &star;
+            break;
+        case MOON:
+            img = &moon;
+            break;
+        default:
+            break;
+        }
+        printf("led_images_counter: %d\n", led_images_counter);
+        if(!isLedImgOn) led_images_counter++;
+    }
+    else
+    {
+        img = (Led_Image *)t->user_data; 
+    }
+
     if(triggerAlarm == true && isLedImgOn == false){
         send_led_data(img, 0.1);
         isLedImgOn = true;
@@ -585,8 +629,8 @@ int main()
         printf("RTC Not Working");
         return 1;
     }
-    //float brightness = 0.1;
-    Led_Image img = moon;
+
+    Led_Image img = dog2;
     Melody alarmTune = nokia;
     //Midi alarmTune = never_gonna_give_you_up;
     
@@ -596,7 +640,7 @@ int main()
 
     display_init();
 
-    add_repeating_timer_ms(1000, led_timer_callback, &img, &timer_leds);
+    add_repeating_timer_ms(1000, led_timer_callback, NULL, &timer_leds);
     add_repeating_timer_ms(wait, buzzer_timer_callback, NULL, &timer_buzzers);
     add_repeating_timer_ms(2000, invert_display_timer_callback, NULL, &timer_disp_inv);
     add_repeating_timer_ms(1000, update_display_timer_callback, NULL, &timer_disp_update);
