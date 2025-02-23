@@ -7,13 +7,15 @@
 
 #define NUM_LEDS 25
 
-typedef struct {
+typedef struct
+{
     uint8_t red[NUM_LEDS];
     uint8_t green[NUM_LEDS];
     uint8_t blue[NUM_LEDS];
 } Led_Image;
 
-typedef enum {
+typedef enum
+{
     CAT,
     DOG2,
     DROP,

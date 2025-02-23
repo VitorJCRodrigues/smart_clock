@@ -10,7 +10,8 @@
 #include <hardware/clocks.h>
 #include <hardware/timer.h>
 
-typedef enum {
+typedef enum
+{
     PACMAN,
     NOKIA,
     TETRIS,
@@ -22,7 +23,7 @@ static double midiNoteToFrequency(int note); // Convert MIDI values for notes in
 
 /***************************
  * MIDI Handling Functions *
- * *************************/ 
+ * *************************/
 
 // Function to initialize PWM on a given GPIO pin
 void bazz_player_init(uint gpio_pin);
@@ -50,10 +51,8 @@ bool bazz_player_is_melody_playing();
 // Notes handler for melody playback
 int64_t bazz_player_play_next_note(alarm_id_t id, void *user_data);
 
-Melody* bazz_player_melody_select(melos selector);
+Melody *bazz_player_melody_select(melos selector);
 
-Melody* melody_init();
+Melody *melody_init();
 
-
-
-#endif //MEDIA_PLAYER_H
+#endif // MEDIA_PLAYER_H

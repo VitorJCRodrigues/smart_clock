@@ -11,14 +11,16 @@
 
 #define MAX_NUM_NOTES 4096
 
-typedef struct {
+typedef struct
+{
     uint16_t notes[MAX_NUM_NOTES];
     uint16_t durations[MAX_NUM_NOTES];
     int length;
     uint32_t tempo;
 } Melody;
 
-typedef struct {
+typedef struct
+{
     uint16_t notes[MAX_NUM_NOTES];
     double durations[MAX_NUM_NOTES];
     int length;
